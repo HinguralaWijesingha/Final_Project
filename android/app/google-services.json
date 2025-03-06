@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "313134255512",
+    "project_id": "safe-pulse-e661a",
+    "storage_bucket": "safe-pulse-e661a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:313134255512:android:21fa458dbc7507528b6fed",
+        "android_client_info": {
+          "package_name": "com.example.safe_pulse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxCMhAqKKn8Y0ZrHZQLqi3m5mwcDCJXXk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
