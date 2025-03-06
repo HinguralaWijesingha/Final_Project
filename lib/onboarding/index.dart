@@ -97,7 +97,7 @@ Widget startButton(BuildContext context) {
         prefs.setBool('onboarding', true);
         
         if (!context.mounted) return; 
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>  LoginPage()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>  const LoginPage()));
       },
       child: const Text("Let's Sign in First",
       style: TextStyle(color: Colors.white),),
