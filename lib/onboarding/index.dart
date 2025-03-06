@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:safe_pulse/home.dart';
 import 'package:safe_pulse/onboarding/onboardingside.dart';
+import 'package:safe_pulse/pages/login_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
@@ -97,7 +97,7 @@ Widget startButton(BuildContext context) {
         prefs.setBool('onboarding', true);
         
         if (!context.mounted) return; 
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Home()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>  LoginPage()));
       },
       child: const Text("Let's Sign in First",
       style: TextStyle(color: Colors.white),),
