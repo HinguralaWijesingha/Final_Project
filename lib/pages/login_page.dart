@@ -20,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    FirebaseAuth.instance.setLanguageCode('en'); // ✅ Set Firebase locale
+    FirebaseAuth.instance.setLanguageCode('en'); 
   }
 
   @override
@@ -40,21 +40,32 @@ class _LoginPageState extends State<LoginPage> {
         password: passwordController.text.trim(),
       );
 
-       print("User signed in successfully");
 
       // Navigate to Home Page
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/new');
       }
-    } catch (e) {
-      print("Login failed: $e");
+    }on FirebaseAuthException catch (e) {
+    String message;
+    if (e.code == 'user-not-found') {
+      message = "No user found with this email.";
+    } else if (e.code == 'wrong-password') {
+      message = "Incorrect password.";
+    } else {
+      message = "Something went wrong. Please try again.";
+    }
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login failed")),
+        SnackBar(content: Text(message)),
       );
-    } finally {
+    }
+  } finally {
+    if (mounted) {
       setState(() => isLoading = false); // Hide loading indicator
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 // Sign in button
                 isLoading
-                    ? const CircularProgressIndicator() // ✅ Show loading indicator
+                    ? const CircularProgressIndicator() 
                     : Button(onTap: userIn),
 
                 const SizedBox(height: 30),
@@ -188,3 +199,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
