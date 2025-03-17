@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/home.dart';
-import 'package:safe_pulse/pages/login_page.dart';
+import 'package:safe_pulse/pages/login_or_register.dart';
 
 class UserCheckPage extends StatelessWidget {
   const UserCheckPage({super.key});
@@ -17,7 +17,7 @@ class UserCheckPage extends StatelessWidget {
             return const Home();
             //not log
           } else {
-            return  const LoginPage();
+            return  const LoginOrRegister();
           }
         }
         ,)
