@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:safe_pulse/home.dart';
 import 'package:safe_pulse/onboarding/index.dart';
 import 'package:safe_pulse/pages/check_signin_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,9 +29,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: onboarding ? const UserCheckPage() : const OnboardingDisplay(),
-      routes: {
-        '/new': (context) => const Home(),
-      },
     );
   }
 }
