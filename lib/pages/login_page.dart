@@ -15,7 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   // Controllers
   final TextEditingController userController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool isLoading = false; // ✅ Loading state
+  bool isLoading = false; //
 
   @override
   void initState() {
@@ -32,40 +32,65 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sign in method
   void userIn() async {
-    setState(() => isLoading = true); // Show loading indicator
+    showDialog(
+      context: context, 
+      builder: (context) => const Center(child: CircularProgressIndicator(),),
+      );
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: userController.text.trim(),
-        password: passwordController.text.trim(),
+        email: userController.text,
+        password: passwordController.text,
       );
 
-
-      // Navigate to Home Page
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/new');
+      //pop the loading circle
+      Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      //pop the loading circle  
+      Navigator.pop(context);
+      if (e.code == 'user-not-found') {
+        wrongEmailMessage();
+      } else if (e.code == 'wrong-password') {
+        wrongEmailMessage();
       }
-    }on FirebaseAuthException catch (e) {
-    String message;
-    if (e.code == 'user-not-found') {
-      message = "No user found with this email.";
-    } else if (e.code == 'wrong-password') {
-      message = "Incorrect password.";
-    } else {
-      message = "Something went wrong. Please try again.";
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => isLoading = false); // Hide loading indicator
     }
   }
-}
+
+  void wrongEmailMessage() {
+    showDialog(
+      context: context, 
+      builder: (context){
+        return const AlertDialog(
+          backgroundColor: Colors.blue,
+          title: Center(
+            child: Text(
+              "Wrong Email",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  void wrongPasswordMessage() {
+    showDialog(
+      context: context, 
+      builder: (context){
+        return const AlertDialog(
+          backgroundColor: Colors.blue,
+          title: Center(
+            child: Text(
+              "Wrong Password",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -199,4 +224,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
