@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/onboarding/index.dart';
 import 'package:safe_pulse/pages/check_signin_page.dart';
+import 'package:safe_pulse/pages/login_page.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -23,14 +24,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Safe Pulse',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
       home: onboarding ? const UserCheckPage() : const OnboardingDisplay(),
       routes: {
-          
+        '/login': (context) => LoginPage(onTap: () {}),  
       },
     );
   }
