@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/login_page.dart';
+import 'package:safe_pulse/pages/register_page.dart';
 
 class LoginOrRegister extends StatefulWidget {
   const LoginOrRegister({super.key});
@@ -8,7 +9,7 @@ class LoginOrRegister extends StatefulWidget {
   State<LoginOrRegister> createState() => _LoginOrRegisterState();
 }
 
-class LoginOrRegisterState extends State<LoginOrRegister> {
+class _LoginOrRegisterState extends State<LoginOrRegister> {
   bool isLogin = true;
 
   void togglePages() {
@@ -24,7 +25,9 @@ class LoginOrRegisterState extends State<LoginOrRegister> {
         onTap: togglePages,
       );
     } else {
-      return const RegisterPage();
+      return  RegisterPage(
+        onTap: togglePages,
+      );
     }
   }
 }
