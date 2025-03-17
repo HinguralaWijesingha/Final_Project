@@ -29,6 +29,9 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: onboarding ? const UserCheckPage() : const OnboardingDisplay(),
+      routes: {
+          
+      },
     );
   }
 }
