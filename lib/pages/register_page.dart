@@ -17,6 +17,8 @@ class _RegisterPageState extends State<RegisterPage> {
   // Controllers
   final TextEditingController userController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmpasswordController =
+      TextEditingController();
   bool isLoading = false; //
 
   @override
@@ -42,10 +44,14 @@ class _RegisterPageState extends State<RegisterPage> {
     );
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: userController.text,
-        password: passwordController.text,
-      );
+      if (passwordController.text == confirmpasswordController.text) {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: userController.text,
+          password: passwordController.text,
+        );
+      }else {
+        showErrormessage("Passwords do not match");
+      }
 
       //pop the loading circle
       Navigator.pop(context);
@@ -61,7 +67,7 @@ class _RegisterPageState extends State<RegisterPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return  AlertDialog(
+        return AlertDialog(
           backgroundColor: Colors.blue,
           title: Center(
             child: Text(
@@ -108,9 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Icons.lock,
                   size: 50,
                 ),
-                
 
-              
                 const SizedBox(height: 25),
 
                 const Text(
@@ -140,37 +144,18 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 15),
 
                 Field(
-                  controller: passwordController,
+                  controller: confirmpasswordController,
                   obscureText: true,
                   hintText: "Confirm Password",
                 ),
 
-                const SizedBox(height: 15),
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        "Forgot Password?",
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 25),
 
                 // Sign in button
                 isLoading
                     ? const CircularProgressIndicator()
-                    : Button(
-                        text: "Sign Up", onTap: userUp),
+                    : Button(text: "Sign Up", onTap: userUp),
 
                 const SizedBox(height: 25),
 
@@ -208,14 +193,13 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 25),
 
                 // Login now
-                 Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text("Have an account"),
                     SizedBox(width: 4),
-                    
                     GestureDetector(
-                      onTap: widget .onTap,
+                      onTap: widget.onTap,
                       child: const Text(
                         "Login now",
                         style: TextStyle(
