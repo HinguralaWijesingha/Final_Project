@@ -101,19 +101,17 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(height: 25),
 
-                // App name
-                const Text(
-                  "Safe Pulse",
-                  style: TextStyle(
-                    fontSize: 40,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
+                // logo
+                const Icon(
+                  Icons.lock,
+                  size: 50,
                 ),
+                
 
-                const SizedBox(height: 30),
+              
+                const SizedBox(height: 25),
 
                 const Text(
                   "Welcome back, you've been missed!",
@@ -123,7 +121,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 15),
 
                 Field(
                   controller: userController,
@@ -147,7 +145,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   hintText: "Confirm Password",
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 15),
 
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 25.0),
@@ -171,9 +169,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 // Sign in button
                 isLoading
                     ? const CircularProgressIndicator()
-                    : Button(onTap: userUp),
+                    : Button(
+                        text: "Sign Up", onTap: userUp),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 25),
 
                 // Sign in method divider
                 const Padding(
@@ -194,7 +193,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 25),
 
                 // Social login buttons
                 const Row(
@@ -206,9 +205,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   ],
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 25),
 
-                // Register now
+                // Login now
                  Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

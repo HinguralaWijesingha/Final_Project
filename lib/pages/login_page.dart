@@ -162,7 +162,8 @@ class _LoginPageState extends State<LoginPage> {
                 // Sign in button
                 isLoading
                     ? const CircularProgressIndicator()
-                    : Button(onTap: userIn),
+                    : Button(
+                        text: "Sign In", onTap: userIn),
 
                 const SizedBox(height: 30),
 
