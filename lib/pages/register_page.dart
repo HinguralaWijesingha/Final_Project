@@ -110,9 +110,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 25),
 
                 // logo
-                const Icon(
-                  Icons.lock,
-                  size: 50,
+                Image.asset(
+                  'assets/lo23.png', 
+                  width: 100, 
+                  height: 100,
                 ),
 
                 const SizedBox(height: 25),
@@ -150,14 +151,14 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
 
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 20),
 
                 // Sign in button
                 isLoading
                     ? const CircularProgressIndicator()
                     : Button(text: "Sign Up", onTap: userUp),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 20),
 
                 // Sign in method divider
                 const Padding(
