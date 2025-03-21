@@ -13,6 +13,12 @@ class OnboardingSide {
          description: "Trigger an SOS with a tap, shake, or power press. Share your location instantly for quick help! 🚨📍",
          image: "assets/p3.png"
       ),
+      
+        OnboardingInfo(
+         title: "Enable Permissions for Safety",
+         description: "To ensure your safety, please enable location, SMS, and notification permissions. These allow real-time tracking, emergency alerts, and quick communication during emergencies. Stay protected with seamless support! 🚨📍",
+         image: "assets/p1.png"
+      )
 
    ];
 }
