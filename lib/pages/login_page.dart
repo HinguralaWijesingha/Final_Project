@@ -100,19 +100,16 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(height: 35),
 
                 // App name
-                const Text(
-                  "Login to Safe Pulse",
-                  style: TextStyle(
-                    fontSize: 30,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Image.asset(
+                  'assets/lo23.png', 
+                  width: 100, 
+                  height: 100,
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
 
                 const Text(
                   "Your safety is our priority.",
@@ -157,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 20),
 
                 // Sign in button
                 isLoading
@@ -186,7 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 40),
 
                 // Social login buttons
                 const Row(
@@ -198,7 +195,7 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
 
                 // Register now
                  Row(
