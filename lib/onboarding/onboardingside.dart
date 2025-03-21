@@ -3,7 +3,7 @@ import 'package:safe_pulse/onboarding/onboardinginfo.dart';
 class OnboardingSide {
    List<OnboardingInfo> items = [
       OnboardingInfo(
-         title: "Welcome ",
+         title: "Welcome to Safe Pulse! 🚀",
          description: "Your safety matters! Get real-time alerts, GPS tracking, and quick emergency access. Stay protected with SOS, fake calls, and offline support. 🚀🔒",
          image: "assets/p2.png"
       ),
@@ -14,10 +14,5 @@ class OnboardingSide {
          image: "assets/p3.png"
       ),
 
-        OnboardingInfo(
-         title: "",
-         description: "",
-         image: ""
-      )
    ];
 }
