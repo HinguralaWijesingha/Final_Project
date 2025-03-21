@@ -19,7 +19,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmpasswordController =
       TextEditingController();
-  bool isLoading = false; //
+  bool isLoading = false; 
 
   @override
   void initState() {
