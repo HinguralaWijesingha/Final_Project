@@ -104,9 +104,9 @@ class _LoginPageState extends State<LoginPage> {
 
                 // App name
                 const Text(
-                  "Safe Pulse",
+                  "Login to Safe Pulse",
                   style: TextStyle(
-                    fontSize: 40,
+                    fontSize: 30,
                     color: Colors.red,
                     fontWeight: FontWeight.bold,
                   ),
