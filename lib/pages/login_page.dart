@@ -113,11 +113,12 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 20),
 
-                const Text(
-                  "Your safety is our priority.",
+                 Text(
+                  "Your safety is our priority.".toUpperCase(),
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
                 ),
 
