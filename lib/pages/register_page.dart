@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/text/button.dart';
 import 'package:safe_pulse/text/field.dart';
-import 'package:safe_pulse/text/image.dart';
 
 class RegisterPage extends StatefulWidget {
   final Function()? onTap;
@@ -147,37 +146,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 20),
 
-                // Sign in method divider
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Divider(color: Colors.black),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10.0),
-                        child: Text("Or continue with"),
-                      ),
-                      Expanded(
-                        child: Divider(color: Colors.black),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 25),
-
-                // Social login buttons
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ImageText(imagePath: 'assets/google.png'),
-                    SizedBox(width: 20),
-                    ImageText(imagePath: 'assets/apple.png'),
-                  ],
-                ),
-
+                
                 const SizedBox(height: 25),
 
                 // Login now
