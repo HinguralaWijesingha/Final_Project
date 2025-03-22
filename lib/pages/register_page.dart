@@ -107,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 25),
 
                 Text(
-                  "create your account here".toUpperCase(),
+                  "create your account here.".toUpperCase(),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.black,

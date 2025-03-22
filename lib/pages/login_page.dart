@@ -184,7 +184,8 @@ class _LoginPageState extends State<LoginPage> {
 
                 // Sign in button
                 Button(
-                        text: "Sign In", onTap: userIn),
+                        text: "Sign In", onTap: userIn
+                  ),
 
                 const SizedBox(height: 30),
 
@@ -214,8 +215,8 @@ class _LoginPageState extends State<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ImageText(imagePath: 'assets/google.png'),
-                    SizedBox(width: 20),
-                    ImageText(imagePath: 'assets/apple.png'),
+                    //SizedBox(width: 20),
+                    //ImageText(imagePath: 'assets/apple.png'),
                   ],
                 ),
 
