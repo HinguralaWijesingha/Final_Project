@@ -34,28 +34,13 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sign in method
   void userIn() async {
-    showDialog(
-      context: context,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: userController.text,
         password: passwordController.text,
       );
-
-      //pop the loading circle
-      Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      //pop the loading circle
-      Navigator.pop(context);
-
-      showErrormessage(e.code);
-    }
   }
+
+
 
   void showErrormessage(String message) {
     showDialog(
@@ -198,9 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
 
                 // Sign in button
-                isLoading
-                    ? const CircularProgressIndicator()
-                    : Button(
+                Button(
                         text: "Sign In", onTap: userIn),
 
                 const SizedBox(height: 30),
