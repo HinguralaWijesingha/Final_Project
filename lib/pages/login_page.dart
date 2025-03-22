@@ -51,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
           title: Center(
             child: Text(
               message,
-              style: TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         );
@@ -155,7 +155,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 10),
 
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -225,8 +225,8 @@ class _LoginPageState extends State<LoginPage> {
                  Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Not a member?"),
-                    SizedBox(width: 4),
+                    const Text("Not a member?"),
+                    const SizedBox(width: 4),
                     
                     GestureDetector(
                       onTap:widget.onTap,
