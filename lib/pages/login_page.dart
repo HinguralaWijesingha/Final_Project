@@ -99,7 +99,7 @@ class _LoginPageState extends State<LoginPage> {
 
                  Text(
                   "Your safety is our priority.".toUpperCase(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,

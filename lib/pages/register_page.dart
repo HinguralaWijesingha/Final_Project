@@ -36,13 +36,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // Sign Up method
   void userUp() async {
-    showDialog(
-      context: context,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
     try {
       if (passwordController.text == confirmpasswordController.text) {
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -53,13 +46,7 @@ class _RegisterPageState extends State<RegisterPage> {
       }else {
         showErrormessage("Passwords do not match");
       }
-
-      //pop the loading circle
-      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
-      //pop the loading circle
-      Navigator.pop(context);
-
       showErrormessage(e.code);
     }
   }
@@ -119,11 +106,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 25),
 
-                const Text(
-                  "Welcome back, you've been missed!",
-                  style: TextStyle(
+                Text(
+                  "create your account here".toUpperCase(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
                     color: Colors.black,
-                    fontSize: 16,
+                    fontSize: 18,
                   ),
                 ),
 
@@ -132,7 +120,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 Field(
                   controller: userController,
                   obscureText: false,
-                  hintText: "Email",
+                  hintText: "Enter Your Email",
                 ),
 
                 const SizedBox(height: 15),
@@ -140,7 +128,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 Field(
                   controller: passwordController,
                   obscureText: true,
-                  hintText: "Password",
+                  hintText: "Enter Your Password",
                 ),
 
                 const SizedBox(height: 15),
@@ -148,16 +136,14 @@ class _RegisterPageState extends State<RegisterPage> {
                 Field(
                   controller: confirmpasswordController,
                   obscureText: true,
-                  hintText: "Confirm Password",
+                  hintText: "Confirm Your Password",
                 ),
 
 
                 const SizedBox(height: 20),
 
                 // Sign in button
-                isLoading
-                    ? const CircularProgressIndicator()
-                    : Button(text: "Sign Up", onTap: userUp),
+                Button(text: "Sign Up", onTap: userUp),
 
                 const SizedBox(height: 20),
 

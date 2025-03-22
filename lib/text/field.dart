@@ -24,15 +24,16 @@ class Field extends StatelessWidget {
         decoration: InputDecoration(
           enabledBorder:  OutlineInputBorder(
             borderSide: const BorderSide(color: Colors.white),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           focusedBorder: OutlineInputBorder(
             borderSide: BorderSide(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(12),
           ),
           fillColor: Colors.grey[200],
           filled: true,
           hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey[500]),
+          
         ),
       ),
     );
