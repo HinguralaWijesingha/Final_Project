@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:safe_pulse/pages/forget_password_page.dart';
 import 'package:safe_pulse/text/button.dart';
 import 'package:safe_pulse/text/field.dart';
 import 'package:safe_pulse/text/image.dart';
@@ -121,33 +123,72 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 25),
 
-                Field(
-                  controller: userController,
-                  obscureText: false,
-                  hintText: "Email",
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                  child: TextField(
+                    controller: userController,
+                    obscureText: false,
+                    decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      hintText: "Enter Your Email",
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 15),
 
-                Field(
-                  controller: passwordController,
-                  obscureText: true,
-                  hintText: "Password",
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                  child: TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      hintText: "Enter Your Password",
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 10),
 
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        "Forgot Password?",
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.bold,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context){
+                            return const ForgetPasswordPage();
+                          },
+                          ),
+                          );
+                        },
+                        child: const Text(
+                          "Forgot Password?",
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
