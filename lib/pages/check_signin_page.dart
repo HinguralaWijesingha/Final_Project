@@ -4,7 +4,7 @@ import 'package:safe_pulse/home.dart';
 import 'package:safe_pulse/pages/login_or_register.dart';
 
 class UserCheckPage extends StatelessWidget {
-  const UserCheckPage({super.key});
+  const UserCheckPage({Key? key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,15 +12,17 @@ class UserCheckPage extends StatelessWidget {
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            //user log
-            return const Home();
-            //not log
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const CircularProgressIndicator();
           } else {
-            return  const LoginOrRegister();
+            if (snapshot.hasData) {
+              return const Home();
+            } else {
+              return const LoginOrRegister();
+            }
           }
-        }
-        ,)
+        },
+      ),
     );
   }
 }
