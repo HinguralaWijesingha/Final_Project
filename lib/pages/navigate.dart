@@ -84,15 +84,15 @@ class _NavigateState extends State<Navigate> {
   String _getAppBarTitle(int index) {
     switch (index) {
       case 0:
-        return 'Home';
+        return '';
       case 1:
-        return 'Map';
+        return '';
       case 2:
-        return 'Contact';
+        return '';
       case 3:
-        return 'Profile';
+        return '';
       default:
-        return 'App';
+        return '';
     }
   }
 }
