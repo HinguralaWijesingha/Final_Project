@@ -1,6 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
+import 'package:safe_pulse/pages/contact_page.dart';
+import 'package:safe_pulse/pages/home_page.dart';
+import 'package:safe_pulse/pages/map_page.dart';
+import 'package:safe_pulse/pages/profile_page.dart';
 
 class Navigate extends StatefulWidget {
   const Navigate({super.key});
@@ -10,15 +14,25 @@ class Navigate extends StatefulWidget {
 }
 
 class _NavigateState extends State<Navigate> {
+  int _selectedIndex = 0;
+  final List<Widget> _pages = [
+    const HomePage(),
+    const MapPage(),
+    const ContactPage(),
+    const ProfilePage(),
+  ];
+
   void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut(); // Sign out user
+    await FirebaseAuth.instance.signOut();
+    // Navigate to login screen after logout
+    Navigator.of(context).pushReplacementNamed('/login');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        //title: const Text("Home"),
+        title: Text(_getAppBarTitle(_selectedIndex)),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -26,18 +40,24 @@ class _NavigateState extends State<Navigate> {
           ),
         ],
       ),
+      body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         color: Colors.blue,
-        child: const  Padding(
-          padding:  EdgeInsets.symmetric(horizontal: 15, vertical: 20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
           child: GNav(
             gap: 8,
             backgroundColor: Colors.blue,
             color: Colors.black,
             activeColor: Colors.white,
-            //tabBackgroundColor: Colors.red,
-            padding:  EdgeInsets.all(9),
-            tabs:  [
+            selectedIndex: _selectedIndex,
+            onTabChange: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            padding: const EdgeInsets.all(9),
+            tabs: const [
               GButton(
                 icon: Icons.home,
                 text: 'Home',
@@ -47,18 +67,33 @@ class _NavigateState extends State<Navigate> {
                 text: 'Map',
               ),
               GButton(
-                icon: Icons.add,
-                text: 'Add contact',
+                icon: Icons.contact_page,
+                text: 'Contact',
               ),
               GButton(
                 icon: Icons.person,
                 text: 'Profile',
               ),
-              
             ],
-            ),
+          ),
         ),
       ),
     );
   }
+
+  String _getAppBarTitle(int index) {
+    switch (index) {
+      case 0:
+        return 'Home';
+      case 1:
+        return 'Map';
+      case 2:
+        return 'Contact';
+      case 3:
+        return 'Profile';
+      default:
+        return 'App';
+    }
+  }
 }
+
