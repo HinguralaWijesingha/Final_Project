@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/onboarding/index.dart';
-import 'package:safe_pulse/pages/check_signin_page.dart';
-import 'package:safe_pulse/pages/login_page.dart'; 
+import 'package:safe_pulse/pages/login/check_signin_page.dart';
+import 'package:safe_pulse/pages/login/login_page.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
