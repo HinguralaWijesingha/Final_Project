@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/navigate.dart';
-import 'package:safe_pulse/pages/login/login_or_register.dart';
+import 'package:safe_pulse/pages/login_or_register.dart';
 
 class UserCheckPage extends StatelessWidget {
   const UserCheckPage({Key? key});
