@@ -2,14 +2,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 
-class Home extends StatefulWidget {
-  const Home({super.key});
+class Navigate extends StatefulWidget {
+  const Navigate({super.key});
 
   @override
-  State<Home> createState() => _HomeState();
+  State<Navigate> createState() => _NavigateState();
 }
 
-class _HomeState extends State<Home> {
+class _NavigateState extends State<Navigate> {
   void _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut(); // Sign out user
   }
@@ -18,7 +18,7 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Home"),
+        //title: const Text("Home"),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),

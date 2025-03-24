@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:safe_pulse/home.dart';
+import 'package:safe_pulse/navigate.dart';
 import 'package:safe_pulse/pages/login_or_register.dart';
 
 class UserCheckPage extends StatelessWidget {
@@ -16,7 +16,7 @@ class UserCheckPage extends StatelessWidget {
             return const CircularProgressIndicator();
           } else {
             if (snapshot.hasData) {
-              return const Home();
+              return const Navigate();
             } else {
               return const LoginOrRegister();
             }
