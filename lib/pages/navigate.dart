@@ -5,6 +5,7 @@ import 'package:safe_pulse/pages/contact_page.dart';
 import 'package:safe_pulse/pages/home_page.dart';
 import 'package:safe_pulse/pages/map_page.dart';
 import 'package:safe_pulse/pages/profile_page.dart';
+import 'package:safe_pulse/pages/chat_page.dart';
 
 class Navigate extends StatefulWidget {
   const Navigate({super.key});
@@ -20,11 +21,11 @@ class _NavigateState extends State<Navigate> {
     const MapPage(),
     const ContactPage(),
     const ProfilePage(),
+    const ChatPage(), 
   ];
 
   void _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
-    // Navigate to login screen after logout
     Navigator.of(context).pushReplacementNamed('/login');
   }
 
@@ -71,8 +72,12 @@ class _NavigateState extends State<Navigate> {
                 text: 'Contact',
               ),
               GButton(
+                icon: Icons.chat,
+                text: 'Chat',
+              ),
+              GButton(
                 icon: Icons.person,
-                text: 'Profile',
+                text: 'Profile', // Added Settings Tab
               ),
             ],
           ),
@@ -84,16 +89,17 @@ class _NavigateState extends State<Navigate> {
   String _getAppBarTitle(int index) {
     switch (index) {
       case 0:
-        return '';
+        return 'Home';
       case 1:
-        return '';
+        return 'Map';
       case 2:
-        return '';
+        return 'Contact';
       case 3:
-        return '';
+        return 'Profile';
+      case 4:
+        return 'Settings'; // Added Title for Settings
       default:
         return '';
     }
   }
 }
-
