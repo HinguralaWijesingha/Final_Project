@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
-import 'package:safe_pulse/pages/contact_page.dart';
+import 'package:safe_pulse/pages/add_contact_page.dart';
 import 'package:safe_pulse/pages/home_page.dart';
 import 'package:safe_pulse/pages/map_page.dart';
 import 'package:safe_pulse/pages/profile_page.dart';
@@ -19,7 +19,7 @@ class _NavigateState extends State<Navigate> {
   final List<Widget> _pages = [
     const HomePage(),
     const MapPage(),
-    const ContactPage(),
+    const AddContactPage(),
     const ChatPage(),
     const ProfilePage(),
      
