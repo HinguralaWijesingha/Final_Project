@@ -57,12 +57,21 @@ class _ContactPageState extends State<ContactPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ListView.builder(
+      body:contacts.length==0?
+      const Center(child: CircularProgressIndicator()):
+      ListView.builder(
         itemCount: contacts.length,
         itemBuilder: (BuildContext context, int index){
+          Contact contact = contacts[index];
           return ListTile(
-            title: Text(contacts[index].familyName!,
+            title: Text(contact.displayName!,
           ),
+          leading: contact.avatar!=null && contact.avatar!.length>0?
+          CircleAvatar(
+            backgroundImage: MemoryImage(contact.avatar!),
+          ):CircleAvatar(
+            child: Text(contact.initials()),
+          )
           );
         }
         ),
