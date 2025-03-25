@@ -20,8 +20,9 @@ class _NavigateState extends State<Navigate> {
     const HomePage(),
     const MapPage(),
     const ContactPage(),
+    const ChatPage(),
     const ProfilePage(),
-    const ChatPage(), 
+     
   ];
 
   void _logout(BuildContext context) async {
@@ -95,9 +96,9 @@ class _NavigateState extends State<Navigate> {
       case 2:
         return 'Contact';
       case 3:
-        return 'Profile';
+        return 'Chat';
       case 4:
-        return 'Settings'; // Added Title for Settings
+        return 'Profile'; 
       default:
         return '';
     }
