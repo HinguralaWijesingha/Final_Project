@@ -22,7 +22,6 @@ class _NavigateState extends State<Navigate> {
     const AddContactPage(),
     const ChatPage(),
     const ProfilePage(),
-     
   ];
 
   void _logout(BuildContext context) async {
@@ -35,12 +34,14 @@ class _NavigateState extends State<Navigate> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_getAppBarTitle(_selectedIndex)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _logout(context),
-          ),
-        ],
+        actions: _selectedIndex == 4
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: () => _logout(context),
+                ),
+              ]
+            : null,
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
@@ -78,7 +79,7 @@ class _NavigateState extends State<Navigate> {
               ),
               GButton(
                 icon: Icons.person,
-                text: 'Profile', // Added Settings Tab
+                text: 'Profile',
               ),
             ],
           ),
@@ -98,7 +99,7 @@ class _NavigateState extends State<Navigate> {
       case 3:
         return 'Chat';
       case 4:
-        return 'Profile'; 
+        return 'Profile';
       default:
         return '';
     }
