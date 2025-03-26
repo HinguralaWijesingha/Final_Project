@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
@@ -77,14 +78,31 @@ class _AddContactPageState extends State<AddContactPage> {
                 itemCount: count,
                 itemBuilder: (BuildContext context, int index) {
                   return Card(
-                    child: ListTile(
-                      title: Text(contactList![index].name),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete),
-                        color: Colors.red,
-                        onPressed: () {
-                          deleteContact(contactList![index]);
-                        },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ListTile(
+                        title: Text(contactList![index].name),
+                        trailing: Container(
+                          width: 100,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.call),
+                                color: Colors.red,
+                                onPressed: () async{
+                                  await FlutterPhoneDirectCaller.callNumber(contactList![index].number);
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                color: Colors.red,
+                                onPressed: () {
+                                  deleteContact(contactList![index]);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   );
