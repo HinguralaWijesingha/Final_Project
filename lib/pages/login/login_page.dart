@@ -34,19 +34,31 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sign in method
   void userIn() async {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: userController.text,
-        password: passwordController.text,
-      );
+    //loading circle
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+    
+    // sign in
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: userController.text,
+      password: passwordController.text,
+    );
+
+    // pop the loading circle
+    Navigator.pop(context);
   }
-
-
 
   void showErrormessage(String message) {
     showDialog(
       context: context,
       builder: (context) {
-        return  AlertDialog(
+        return AlertDialog(
           backgroundColor: Colors.blue,
           title: Center(
             child: Text(
@@ -90,14 +102,14 @@ class _LoginPageState extends State<LoginPage> {
 
                 // App logo
                 Image.asset(
-                  'assets/lo23.png', 
-                  width: 100, 
+                  'assets/lo23.png',
+                  width: 100,
                   height: 100,
                 ),
 
                 const SizedBox(height: 20),
 
-                 Text(
+                Text(
                   "Your safety is our priority.".toUpperCase(),
                   style: const TextStyle(
                     color: Colors.black,
@@ -161,10 +173,13 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context){
-                            return const ForgetPasswordPage();
-                          },
-                          ),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) {
+                                return const ForgetPasswordPage();
+                              },
+                            ),
                           );
                         },
                         child: const Text(
@@ -183,9 +198,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
 
                 // Sign in button
-                Button(
-                        text: "Sign In", onTap: userIn
-                  ),
+                Button(text: "Sign In", onTap: userIn),
 
                 const SizedBox(height: 30),
 
@@ -223,14 +236,13 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
 
                 // Register now
-                 Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Not a member?"),
                     const SizedBox(width: 4),
-                    
                     GestureDetector(
-                      onTap:widget.onTap,
+                      onTap: widget.onTap,
                       child: const Text(
                         "Register now",
                         style: TextStyle(
