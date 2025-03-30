@@ -6,7 +6,7 @@ import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 class PoliceContact extends StatelessWidget {
   const PoliceContact({Key? key}) : super(key: key);
 
-  _callNumber(String number) async{//set the number here
+  _callNumber(String number) async{
   await FlutterPhoneDirectCaller.callNumber(number);
 }
 
