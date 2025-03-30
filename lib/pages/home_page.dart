@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:safe_pulse/pages/public_emergency/live_help.dart';
 import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 
 
@@ -28,6 +29,16 @@ class _HomePageState extends State<HomePage> {
                 ),),
               ),
              PublicEmergencyContacts(),
+
+             Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text("Live Help",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20
+                ),),
+              ),
+              LiveHelp(),
             ]
           ) ,
           ) ,

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:safe_pulse/pages/widgets/public_contact/police_emergency.dart';
+import 'package:safe_pulse/pages/widgets/live/police_station.dart';
 
-class PublicEmergencyContacts extends StatelessWidget {
-  const PublicEmergencyContacts({Key? key}) : super(key: key);
+class LiveHelp extends StatelessWidget {
+  const LiveHelp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 90,
       width: MediaQuery.of(context).size.width,
-      height: 180,
       child: ListView(
         physics: const BouncingScrollPhysics(),
         scrollDirection: Axis.horizontal,
         children: const [
-          PoliceContact(),
+          PoliceStation(),
         ],
       ),
     );
