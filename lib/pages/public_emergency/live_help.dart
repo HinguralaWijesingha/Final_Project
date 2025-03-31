@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:safe_pulse/pages/widgets/live/police_station.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LiveHelp extends StatelessWidget {
   const LiveHelp({Key? key}) : super(key: key);
+
+  static Future<void> openMap(String location) async {
+    String googleUrl ='https://www.google.com/maps/search/$location';
+    final Uri _url = Uri.parse(googleUrl);
+    try {
+      await launchUrl(_url);
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +25,7 @@ class LiveHelp extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         scrollDirection: Axis.horizontal,
         children: const [
-          PoliceStation(),
+          PoliceStation(onMapFunction: openMap,),
         ],
       ),
     );

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
 class PoliceStation extends StatelessWidget {
-  const PoliceStation({Key? key}) : super(key: key);
+  final Function(String) onMapFunction;
+  const PoliceStation({Key? key, required this.onMapFunction}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -10,17 +11,22 @@ class PoliceStation extends StatelessWidget {
       padding: const EdgeInsets.only(left: 20),
       child: Column(
         children: [
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-            child: Container(
-              height: 50,
-              width: 50,
-              child: Center(
-                child: Image.asset('assets/ps.png',
-                  height: 32,
+          InkWell(
+            onTap: (){
+              onMapFunction('Police Stations near me');
+            },
+            child: Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+              child: Container(
+                height: 50,
+                width: 50,
+                child: Center(
+                  child: Image.asset('assets/ps.png',
+                    height: 32,
+                  ),
                 ),
               ),
             ),
