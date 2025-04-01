@@ -14,10 +14,13 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   // Controllers
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController userController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmpasswordController =
       TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+
   bool isLoading = false; 
 
   @override
@@ -103,7 +106,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   height: 100,
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 15),
 
                 Text(
                   "create your account here.".toUpperCase(),
@@ -112,6 +115,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     color: Colors.black,
                     fontSize: 18,
                   ),
+                ),
+                const SizedBox(height: 15),
+
+                Field(
+                  controller: nameController,
+                  obscureText: false,
+                  hintText: "Enter Your Name",
                 ),
 
                 const SizedBox(height: 15),
@@ -138,6 +148,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   hintText: "Confirm Your Password",
                 ),
 
+                const SizedBox(height: 15),
+
+                Field(
+                  controller: phoneController,
+                  obscureText: false,
+                  hintText: "Enter Your Phone Number",
+                ),
+
 
                 const SizedBox(height: 20),
 
@@ -145,9 +163,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 Button(text: "Sign Up", onTap: userUp),
 
                 const SizedBox(height: 20),
-
-                
-                const SizedBox(height: 25),
 
                 // Login now
                 Row(
