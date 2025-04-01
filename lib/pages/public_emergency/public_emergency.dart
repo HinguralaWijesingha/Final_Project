@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safe_pulse/pages/widgets/public_contact/ambulance.dart';
 import 'package:safe_pulse/pages/widgets/public_contact/police_emergency.dart';
 
 class PublicEmergencyContacts extends StatelessWidget {
@@ -14,6 +15,7 @@ class PublicEmergencyContacts extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: const [
           PoliceContact(),
+          Ambulance(),
         ],
       ),
     );
