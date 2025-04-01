@@ -78,8 +78,8 @@ class _NavigateState extends State<Navigate> {
                 text: 'Chat',
               ),
               GButton(
-                icon: Icons.person,
-                text: 'Profile',
+                icon: Icons.settings,
+                text: 'Settings',
               ),
             ],
           ),
@@ -99,7 +99,7 @@ class _NavigateState extends State<Navigate> {
       case 3:
         return 'Chat';
       case 4:
-        return 'Profile';
+        return 'Settings';
       default:
         return '';
     }
