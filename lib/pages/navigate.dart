@@ -4,8 +4,9 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:safe_pulse/pages/add_contact_page.dart';
 import 'package:safe_pulse/pages/home_page.dart';
 import 'package:safe_pulse/pages/map_page.dart';
-import 'package:safe_pulse/pages/profile_page.dart';
+//import 'package:safe_pulse/pages/profile_page.dart';
 import 'package:safe_pulse/pages/chat_page.dart';
+import 'package:safe_pulse/pages/setting.dart';
 
 class Navigate extends StatefulWidget {
   const Navigate({super.key});
@@ -21,7 +22,8 @@ class _NavigateState extends State<Navigate> {
     const MapPage(),
     const AddContactPage(),
     const ChatPage(),
-    const ProfilePage(),
+    //const ProfilePage(),
+    const Setting(),
   ];
 
   void _logout(BuildContext context) async {
