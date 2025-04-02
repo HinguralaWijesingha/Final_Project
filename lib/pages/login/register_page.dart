@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class _RegisterPageState extends State<RegisterPage> {
       TextEditingController();
   final TextEditingController phoneController = TextEditingController();
 
-  bool isLoading = false; 
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -37,21 +38,39 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   // Sign Up method
-  void userUp() async {
-    try {
-      if (passwordController.text == confirmpasswordController.text) {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: userController.text,
-          password: passwordController.text,
-        );
+ void userUp() async {
+  try {
+    if (passwordController.text == confirmpasswordController.text) {
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: userController.text,
+        password: passwordController.text,
+      );
 
-      }else {
-        showErrormessage("Passwords do not match");
-      }
-    } on FirebaseAuthException catch (e) {
-      showErrormessage(e.code);
+      print("User created successfully: ${userCredential.user?.uid}");
+
+      // Add user data to Firestore
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userCredential.user!.uid)
+          .set({
+        'name': nameController.text,
+        'email': userController.text,
+        'phonenumber': phoneController.text
+      });
+
+      print("User data added to Firestore!");
+    } else {
+      showErrormessage("Passwords do not match");
     }
+  } on FirebaseAuthException catch (e) {
+    print("FirebaseAuthException: ${e.code}");
+    showErrormessage(e.code);
+  } catch (e) {
+    print("Error: $e");
   }
+}
+
 
   void showErrormessage(String message) {
     showDialog(
@@ -101,8 +120,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 // logo
                 Image.asset(
-                  'assets/lo23.png', 
-                  width: 100, 
+                  'assets/lo23.png',
+                  width: 100,
                   height: 100,
                 ),
 
@@ -155,7 +174,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   obscureText: false,
                   hintText: "Enter Your Phone Number",
                 ),
-
 
                 const SizedBox(height: 20),
 
