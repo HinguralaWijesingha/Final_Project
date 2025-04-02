@@ -50,7 +50,7 @@ class _RegisterPageState extends State<RegisterPage> {
         // Add user data to Firestore
         await FirebaseFirestore.instance
             .collection('Users')
-            .doc(userCredential.user!.uid)
+            .doc(userCredential.user!.email)
             .set({
           'name': nameController.text,
           'email': userController.text,
