@@ -38,39 +38,31 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   // Sign Up method
- void userUp() async {
-  try {
-    if (passwordController.text == confirmpasswordController.text) {
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: userController.text,
-        password: passwordController.text,
-      );
+  void userUp() async {
+    try {
+      if (passwordController.text == confirmpasswordController.text) {
+        UserCredential userCredential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: userController.text,
+          password: passwordController.text,
+        );
 
-      print("User created successfully: ${userCredential.user?.uid}");
-
-      // Add user data to Firestore
-      await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'name': nameController.text,
-        'email': userController.text,
-        'phonenumber': phoneController.text
-      });
-
-      print("User data added to Firestore!");
-    } else {
-      showErrormessage("Passwords do not match");
+        // Add user data to Firestore
+        await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'name': nameController.text,
+          'email': userController.text,
+          'phonenumber': phoneController.text
+        });
+      } else {
+        showErrormessage("Passwords do not match");
+      }
+    } on FirebaseAuthException catch (e) {
+      showErrormessage(e.code);
     }
-  } on FirebaseAuthException catch (e) {
-    print("FirebaseAuthException: ${e.code}");
-    showErrormessage(e.code);
-  } catch (e) {
-    print("Error: $e");
   }
-}
-
 
   void showErrormessage(String message) {
     showDialog(
