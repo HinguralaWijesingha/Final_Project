@@ -181,9 +181,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     const Text("Have an account"),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: widget.onTap,
+                      onTap: (){
+                        widget.onTap?.call();
+                      },
                       child: const Text(
-                        "Login now",
+                        "Login Now",
                         style: TextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,

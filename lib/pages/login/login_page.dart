@@ -46,8 +46,8 @@ class _LoginPageState extends State<LoginPage> {
     
     // sign in
     await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: userController.text,
-      password: passwordController.text,
+      email: userController.text.trim(),
+      password: passwordController.text.trim()
     );
 
     // pop the loading circle
@@ -242,9 +242,12 @@ class _LoginPageState extends State<LoginPage> {
                     const Text("Not a member?"),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: widget.onTap,
-                      child: const Text(
-                        "Register now",
+                      onTap: (){
+                        //print("Register now tapped!");
+                        widget.onTap?.call();
+                      },
+                      child:  Text(
+                        "Register Now",
                         style: TextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,
