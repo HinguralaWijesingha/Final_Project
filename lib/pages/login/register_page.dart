@@ -43,14 +43,14 @@ class _RegisterPageState extends State<RegisterPage> {
       if (passwordController.text == confirmpasswordController.text) {
         UserCredential userCredential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: userController.text,
-          password: passwordController.text,
+          email: userController.text.trim(),
+          password: passwordController.text.trim(),
         );
 
         // Add user data to Firestore
         await FirebaseFirestore.instance
             .collection('Users')
-            .doc(userCredential.user!.email)
+            .doc(userCredential.user!.uid)
             .set({
           'name': nameController.text,
           'email': userController.text,
