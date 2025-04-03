@@ -246,7 +246,7 @@ class _LoginPageState extends State<LoginPage> {
                         //print("Register now tapped!");
                         widget.onTap?.call();
                       },
-                      child:  Text(
+                      child:  const Text(
                         "Register Now",
                         style: TextStyle(
                           color: Colors.blue,
