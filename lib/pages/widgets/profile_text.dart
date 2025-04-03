@@ -33,7 +33,10 @@ class ProfileText extends StatelessWidget {
 
               IconButton(
                 onPressed: onPressed, 
-                icon: const Icon(Icons.edit),
+                icon: const Icon(
+                  Icons.edit,
+                  size: 16,
+                  ),
               ),
 
 
