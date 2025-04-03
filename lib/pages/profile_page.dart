@@ -14,8 +14,55 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
 
+  //all user data
+  final usersCollection = FirebaseFirestore.instance.collection('Users');
+
   //edit
-  Future<void> edit(String field) async {}
+  Future<void> edit(String field) async {
+    String newValue = "";
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          "Edit $field",
+          style: const TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            autofocus: true,
+            style: const TextStyle(color: Colors.white),
+            decoration:  InputDecoration(
+              hintText: "Enter new $field",
+              hintStyle: const TextStyle(color: Colors.grey),
+            ),
+            onChanged: (value) {
+              newValue = value;
+            },
+          ),
+          actions: [
+
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel",
+              style: TextStyle(color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(newValue),
+              child: const Text("Save",
+              style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        
+      ),
+    );
+
+    //update
+    if(newValue.trim().length > 0){
+      await usersCollection.doc(currentUser.uid).update({field: newValue});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +114,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 ProfileText(
                   text: currentUser.email!,
                   subText: "Email",
-                  onPressed: () => edit("name"),
+                  onPressed: () => edit("email"),
                 ),
                 ProfileText(
                   text: userData['phonenumber'],
                   subText: "Phone Number",
-                  onPressed: () => edit("name"),
+                  onPressed: () => edit("phone number"),
                 ),
               ],
             );
