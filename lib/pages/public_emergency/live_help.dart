@@ -27,6 +27,7 @@ class LiveHelp extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: const [
           PoliceStation(onMapFunction: openMap,),
+          SizedBox(width: 24,),
           Hospital(onMapFunction: openMap,),
         ],
       ),
