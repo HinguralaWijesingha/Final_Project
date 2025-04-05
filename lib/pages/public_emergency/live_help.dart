@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:safe_pulse/pages/widgets/live/hospital.dart';
 import 'package:safe_pulse/pages/widgets/live/police_station.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -26,6 +27,7 @@ class LiveHelp extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: const [
           PoliceStation(onMapFunction: openMap,),
+          Hospital(onMapFunction: openMap,),
         ],
       ),
     );
