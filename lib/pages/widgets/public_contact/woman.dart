@@ -20,7 +20,7 @@ class Ambulance extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
         ),
         child: InkWell(
-          onTap: () => _callNumber('119'),
+          onTap: () => _callNumber('109'),
           child: Container(
             height: 180,
             width: MediaQuery.of(context).size.width * 0.7,
@@ -44,7 +44,7 @@ class Ambulance extends StatelessWidget {
                   CircleAvatar(
                     radius: 25,
                     backgroundColor: Colors.white.withOpacity(0.5),
-                    child: Image.asset("assets/am.png"),
+                    child: Image.asset("assets/wo.png"),
                   ),
                    Expanded(
                     child: Column(
