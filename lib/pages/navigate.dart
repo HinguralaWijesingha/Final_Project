@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:safe_pulse/pages/add_contact_page.dart';
 import 'package:safe_pulse/pages/home_page.dart';
-import 'package:safe_pulse/pages/map_page.dart';
+//import 'package:safe_pulse/pages/map_page.dart';
 import 'package:safe_pulse/pages/profile_page.dart';
 import 'package:safe_pulse/pages/chat_page.dart';
 //import 'package:safe_pulse/pages/setting.dart';
@@ -19,7 +19,7 @@ class _NavigateState extends State<Navigate> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
     const HomePage(),
-    const MapPage(),
+    //const MapPage(),
     const AddContactPage(),
     const ChatPage(),
     const ProfilePage(),
