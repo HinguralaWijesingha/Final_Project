@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:safe_pulse/pages/widgets/profile_text.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -14,10 +13,10 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
 
-  //all user data
+  // All user data
   final usersCollection = FirebaseFirestore.instance.collection('Users');
 
-  //edit
+  // Edit profile fields
   Future<void> edit(String field) async {
     String newValue = "";
     await showDialog(
@@ -27,40 +26,82 @@ class _ProfilePageState extends State<ProfilePage> {
         title: Text(
           "Edit $field",
           style: const TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: "Enter new $field",
+            hintStyle: const TextStyle(color: Colors.grey),
           ),
-          content: TextField(
-            autofocus: true,
-            style: const TextStyle(color: Colors.white),
-            decoration:  InputDecoration(
-              hintText: "Enter new $field",
-              hintStyle: const TextStyle(color: Colors.grey),
+          onChanged: (value) {
+            newValue = value;
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.white),
             ),
-            onChanged: (value) {
-              newValue = value;
-            },
           ),
-          actions: [
-
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel",
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(newValue),
+            child: const Text(
+              "Save",
               style: TextStyle(color: Colors.white),
-              ),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(newValue),
-              child: const Text("Save",
-              style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        
+          ),
+        ],
       ),
     );
 
-    //update
-    if(newValue.trim().length > 0){
+    // Update
+    if (newValue.trim().isNotEmpty) {
       await usersCollection.doc(currentUser.uid).update({field: newValue});
+    }
+  }
+
+  // Delete user account
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content:
+            const Text('Are you sure you want to permanently delete your account?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      try {
+        // Delete Firestore user document
+        await usersCollection.doc(currentUser.uid).delete();
+
+        // Delete Firebase Authentication user
+        await currentUser.delete();
+
+        // Navigate to login screen (update route as needed)
+        Navigator.of(context).pushReplacementNamed('/login');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e')),
+        );
+      }
     }
   }
 
@@ -74,37 +115,32 @@ class _ProfilePageState extends State<ProfilePage> {
             .doc(currentUser.uid)
             .snapshots(),
         builder: (context, snapshot) {
-          //get users data
           if (snapshot.hasData) {
             final userData = snapshot.data!.data() as Map<String, dynamic>?;
             return ListView(
               children: [
-                const SizedBox(
-                  height: 40,
-                ),
+                const SizedBox(height: 40),
                 const Icon(
                   Icons.person,
                   size: 70,
                   color: Colors.black,
                 ),
-                const SizedBox(
-                  height: 10,
-                ),
+                const SizedBox(height: 10),
                 Text(
                   currentUser.email!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.black),
                 ),
-                const SizedBox(
-                  height: 30,
-                ),
+                const SizedBox(height: 30),
                 Padding(
                   padding: const EdgeInsets.only(left: 25.0),
-                  child: Text('My Details',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[600],
-                      )),
+                  child: Text(
+                    'My Details',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                 ),
                 ProfileText(
                   text: userData!['name'],
@@ -121,19 +157,31 @@ class _ProfilePageState extends State<ProfilePage> {
                   subText: "Phone Number",
                   onPressed: () => edit("phone number"),
                 ),
+                const SizedBox(height: 20),
+
+                //  Delete Account Button
+                Padding(
+                  padding: const EdgeInsets.all(25),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    onPressed: () => _confirmDeleteAccount(context),
+                    child: const Text(
+                      'Delete My Account',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                ),
               ],
             );
           } else if (snapshot.hasError) {
-            return Center(
-              child: Text('Error${snapshot.error}'),
-            );
+            return Center(child: Text('Error${snapshot.error}'));
           }
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         },
       ),
-      // },
     );
   }
 }
