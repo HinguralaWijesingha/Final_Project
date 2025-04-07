@@ -12,8 +12,6 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
-
-  // All user data
   final usersCollection = FirebaseFirestore.instance.collection('Users');
 
   // Edit profile fields
@@ -69,8 +67,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Account'),
-        content:
-            const Text('Are you sure you want to permanently delete your account?'),
+        content: const Text('Are you sure you want to permanently delete your account?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -89,14 +86,19 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (shouldDelete == true) {
       try {
+        final user = FirebaseAuth.instance.currentUser;
+
         // Delete Firestore user document
-        await usersCollection.doc(currentUser.uid).delete();
+        await FirebaseFirestore.instance.collection('Users').doc(user!.uid).delete();
 
         // Delete Firebase Authentication user
-        await currentUser.delete();
+        await user.delete();
 
-        // Navigate to login screen (update route as needed)
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Sign out user just in case
+        await FirebaseAuth.instance.signOut();
+
+        // Navigate to login screen
+        Navigator.of(context).pushReplacementNamed('LoginPage');
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to delete account: $e')),
@@ -159,7 +161,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 20),
 
-                //  Delete Account Button
+                // Delete Account Button
                 Padding(
                   padding: const EdgeInsets.all(25),
                   child: ElevatedButton(
@@ -177,7 +179,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             );
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
           return const Center(child: CircularProgressIndicator());
         },
