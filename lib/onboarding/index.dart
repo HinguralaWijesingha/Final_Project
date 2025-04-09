@@ -22,37 +22,38 @@ class _OnboardingDisplayState extends State<OnboardingDisplay> {
         bottomSheet: Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-          child: isLastPage ? startButton(context) :   Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              //skip button
-              TextButton(
-                  onPressed: () =>
-                      pageController.jumpToPage(controller.items.length),
-                  child: const Text("Skip")),
-
-              Opacity(
-                opacity: 0.0, // Hides the dots
-                child: SmoothPageIndicator(
-                  controller: pageController,
-                  count: controller.items.length,
-                  effect: const WormEffect(activeDotColor: Colors.blue),
+          child: isLastPage
+              ? startButton(context)
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Skip button
+                    TextButton(
+                        onPressed: () =>
+                            pageController.jumpToPage(controller.items.length),
+                        child: const Text("Skip")),
+                    Opacity(
+                      opacity: 0.0, // Hides the dots
+                      child: SmoothPageIndicator(
+                        controller: pageController,
+                        count: controller.items.length,
+                        effect: const WormEffect(activeDotColor: Colors.blue),
+                      ),
+                    ),
+                    // Next button
+                    TextButton(
+                        onPressed: () => pageController.nextPage(
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeIn),
+                        child: const Text("Next")),
+                  ],
                 ),
-              ),
-
-              //next button
-              TextButton(
-                  onPressed: () => pageController.nextPage(
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeIn),
-                  child: const Text("Next")),
-            ],
-          ),
         ),
         body: Container(
           margin: const EdgeInsets.symmetric(horizontal: 15),
           child: PageView.builder(
-            onPageChanged: (index)=> setState(()=> isLastPage =controller.items.length - 1 == index),
+              onPageChanged: (index) => setState(
+                  () => isLastPage = controller.items.length - 1 == index),
               itemCount: controller.items.length,
               controller: pageController,
               itemBuilder: (context, index) {
@@ -81,25 +82,27 @@ class _OnboardingDisplayState extends State<OnboardingDisplay> {
   }
 }
 
-//start button
+// Start button
 Widget startButton(BuildContext context) {
   return Container(
-    decoration:  const BoxDecoration(
+    decoration: const BoxDecoration(
       borderRadius: BorderRadius.all(Radius.circular(8)),
-      color: Colors.blue,      
+      color: Colors.blue,
     ),
     width: MediaQuery.of(context).size.width * .9,
     height: 50,
     child: TextButton(
-      onPressed: ()async{
+      onPressed: () async {
         final prefs = await SharedPreferences.getInstance();
         prefs.setBool('onboarding', true);
-        
-        if (!context.mounted) return; 
-         Navigator.of(context).pushReplacementNamed('/login');
+
+        if (!context.mounted) return;
+        Navigator.of(context).pushReplacementNamed('/login'); // Navigate to login
       },
-      child: const Text("Let's Sign in First",
-      style: TextStyle(color: Colors.white),),
+      child: const Text(
+        "Let's Sign in First",
+        style: TextStyle(color: Colors.white),
+      ),
     ),
   );
 }
