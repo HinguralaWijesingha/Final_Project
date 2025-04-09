@@ -21,7 +21,7 @@ class _MapPageState extends State<MapPage> {
           FlutterMap(
             mapController: _mapController,
             options:const  MapOptions(
-              initialCenter: LatLng(0, 0),
+              initialCenter: LatLng(6.9271, 79.8612),
               initialZoom: 2,
               minZoom: 2,
               maxZoom: 100,
