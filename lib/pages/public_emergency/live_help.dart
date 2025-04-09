@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:safe_pulse/pages/widgets/live/hospital.dart';
 import 'package:safe_pulse/pages/widgets/live/police_station.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,13 +8,50 @@ import 'package:url_launcher/url_launcher.dart';
 class LiveHelp extends StatelessWidget {
   const LiveHelp({Key? key}) : super(key: key);
 
-  static Future<void> openMap(String location) async {
-    String googleUrl ='https://www.google.com/maps/search/$location';
-    final Uri _url = Uri.parse(googleUrl);
+  static Future<void> openMap(String placeType) async {
     try {
-      await launchUrl(_url);
+      // Step 1: Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Fluttertoast.showToast(msg: "Location services are disabled.");
+        return;
+      }
+
+      // Step 2: Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          Fluttertoast.showToast(msg: "Location permission denied.");
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        Fluttertoast.showToast(msg: "Location permission permanently denied.");
+        return;
+      }
+
+      // Step 3: Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final latitude = position.latitude;
+      final longitude = position.longitude;
+
+      // Step 4: Build Google Maps query with current location
+      final query = "$placeType near $latitude,$longitude";
+      final Uri googleMapUrl = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$query',
+      );
+
+      // Step 5: Launch Maps
+      if (!await launchUrl(googleMapUrl, mode: LaunchMode.externalApplication)) {
+        Fluttertoast.showToast(msg: "Could not open map.");
+      }
     } catch (e) {
-      Fluttertoast.showToast(msg: "Error");
+      Fluttertoast.showToast(msg: "Error fetching location.");
     }
   }
 
@@ -26,9 +64,9 @@ class LiveHelp extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         scrollDirection: Axis.horizontal,
         children: const [
-          PoliceStation(onMapFunction: openMap,),
-          SizedBox(width: 24,),
-          Hospital(onMapFunction: openMap,),
+          PoliceStation(onMapFunction: openMap),
+          SizedBox(width: 24),
+          Hospital(onMapFunction: openMap),
         ],
       ),
     );
