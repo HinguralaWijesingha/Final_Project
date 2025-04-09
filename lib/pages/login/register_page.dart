@@ -181,8 +181,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     const Text("Have an account"),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: (){
-                        widget.onTap?.call();
+                      onTap: () {
+                        // Navigate back to login screen
+                        Navigator.pop(context);
                       },
                       child: const Text(
                         "Login Now",
