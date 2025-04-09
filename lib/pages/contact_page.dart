@@ -1,7 +1,6 @@
 import 'package:contacts_service/contacts_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:safe_pulse/db/db.dart';
@@ -21,9 +20,13 @@ class _ContactPageState extends State<ContactPage> {
   DB _db = DB();
 
   TextEditingController searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
+    searchController.addListener(() {
+      cleanContact();
+    });
     askpermissions();
   }
 
@@ -40,19 +43,22 @@ class _ContactPageState extends State<ContactPage> {
       _contacts.retainWhere((element) {
         String searchTerm = searchController.text.toLowerCase();
         String contactNumber = pattenPhoneNumber(searchTerm);
-        String contactName = element.displayName!.toLowerCase();
+        String contactName = (element.displayName ?? "").toLowerCase();
         bool matchName = contactName.contains(searchTerm);
-        if (matchName == true) {
+        if (matchName) {
           return true;
         }
-        if (contactNumber.isEmpty) {
+        if (contactNumber.isEmpty || element.phones == null) {
           return false;
         }
-        var contactPhone = element.phones!.firstWhere((p) {
-          String phnpatten = pattenPhoneNumber(p.value!);
-          return phnpatten.contains(contactNumber);
-        });
-        return contactPhone.value != null;
+        var contactPhone = element.phones!.firstWhere(
+          (p) {
+            String phnpatten = pattenPhoneNumber(p.value ?? "");
+            return phnpatten.contains(contactNumber);
+          },
+          orElse: () => Item(label: "", value: ""),
+        );
+        return contactPhone.value != null && contactPhone.value!.isNotEmpty;
       });
     }
     setState(() {
@@ -64,9 +70,6 @@ class _ContactPageState extends State<ContactPage> {
     PermissionStatus status = await getContactsPermission();
     if (status == PermissionStatus.granted) {
       getAllContacts();
-      searchController.addListener(() {
-        cleanContact();
-      });
     } else {
       invaliedPermissions(status);
     }
@@ -76,7 +79,7 @@ class _ContactPageState extends State<ContactPage> {
     if (status == PermissionStatus.denied) {
       dialogueBox(context, "Access to contacts is denied by user");
     } else if (status == PermissionStatus.permanentlyDenied) {
-      dialogueBox(context, "Contacts doesn't exit in this device");
+      dialogueBox(context, "Contacts doesn't exist on this device");
     }
   }
 
@@ -93,7 +96,8 @@ class _ContactPageState extends State<ContactPage> {
 
   getAllContacts() async {
     List<Contact> _contacts =
-        await ContactsService.getContacts(withThumbnails: false);
+        await ContactsService.getContacts(withThumbnails: true);
+    print("Total Contacts Fetched: ${_contacts.length}");
     setState(() {
       contacts = _contacts;
     });
@@ -101,10 +105,11 @@ class _ContactPageState extends State<ContactPage> {
 
   @override
   Widget build(BuildContext context) {
-    bool isSearchIng = searchController.text.isNotEmpty;
-    bool listItemExit = (contactsFilter.length > 0 || contacts.length > 0);
+    bool isSearching = searchController.text.isNotEmpty;
+    bool listItemExists = (contactsFilter.isNotEmpty || contacts.isNotEmpty);
+
     return Scaffold(
-      body: contacts.length == 0
+      body: contacts.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Column(
@@ -120,22 +125,22 @@ class _ContactPageState extends State<ContactPage> {
                       ),
                     ),
                   ),
-                  listItemExit == true
+                  listItemExists
                       ? Expanded(
                           child: ListView.builder(
-                            itemCount: isSearchIng == true
+                            itemCount: isSearching
                                 ? contactsFilter.length
                                 : contacts.length,
                             itemBuilder: (BuildContext context, int index) {
-                              Contact contact = isSearchIng == true
+                              Contact contact = isSearching
                                   ? contactsFilter[index]
                                   : contacts[index];
                               return ListTile(
                                 title: Text(
-                                  contact.displayName!,
+                                  contact.displayName ?? "No Name",
                                 ),
                                 leading: contact.avatar != null &&
-                                        contact.avatar!.length > 0
+                                        contact.avatar!.isNotEmpty
                                     ? CircleAvatar(
                                         backgroundImage:
                                             MemoryImage(contact.avatar!),
@@ -144,21 +149,24 @@ class _ContactPageState extends State<ContactPage> {
                                         child: Text(contact.initials()),
                                       ),
                                 onTap: () {
-                                  if (contact.phones!.isNotEmpty) {
+                                  if (contact.phones != null &&
+                                      contact.phones!.isNotEmpty) {
                                     final String phoneNum =
-                                        contact.phones!.first.value!;
-                                    final String name = contact.displayName!;
-                                    _addContact(Dcontacts( name, phoneNum));
-                                  }else{
-                                    Fluttertoast.showToast(msg: "Oops!! Contact has no phone number");
+                                        contact.phones!.first.value ?? "";
+                                    final String name =
+                                        contact.displayName ?? "Unknown";
+                                    _addContact(Dcontacts(name, phoneNum));
+                                  } else {
+                                    Fluttertoast.showToast(
+                                        msg: "Oops! Contact has no phone number");
                                   }
                                 },
                               );
                             },
                           ),
                         )
-                      : Container(
-                          child: const Text("search for contact"),
+                      : const Center(
+                          child: Text("Search for contact"),
                         ),
                 ],
               ),
@@ -169,8 +177,8 @@ class _ContactPageState extends State<ContactPage> {
   void _addContact(Dcontacts newContact) async {
     int result = await _db.insertContact(newContact);
     if (result != 0) {
-       Fluttertoast.showToast(msg: "Contact Added Successfully");
-    }else {
+      Fluttertoast.showToast(msg: "Contact Added Successfully");
+    } else {
       Fluttertoast.showToast(msg: "Contact Not Added");
     }
     Navigator.of(context).pop(true);
