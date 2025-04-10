@@ -14,13 +14,15 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
   //final Location _location = Location();
- // final TextEditingController _locationController = TextEditingController();
+  //final TextEditingController _locationController = TextEditingController();
   //bool _isLoading = true;
   LatLng? _currentLocation;
   //LatLng? _destinationLocation;
   //List<LatLng> _routeCoordinates = [];
 
-  Future<void> _userCurrentLocation() async {
+
+
+Future<void> _userCurrentLocation() async {
     if (_currentLocation != null) {
       _mapController.move(_currentLocation!, 15);
     } else {
@@ -38,7 +40,7 @@ class _MapPageState extends State<MapPage> {
       body: Stack(children: [
         FlutterMap(
             mapController: _mapController,
-            options:  MapOptions(
+            options: MapOptions(
               initialCenter: _currentLocation ?? LatLng(6.9271, 79.8612),
               initialZoom: 2,
               minZoom: 2,
