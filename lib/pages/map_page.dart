@@ -179,7 +179,7 @@ class _MapPageState extends State<MapPage> {
     );
 
     if (selectedContact != null) {
-      // Clean the number to remove spaces, dashes, etc.
+
       final String cleanNumber =
           selectedContact!.number.replaceAll(RegExp(r'\D'), '');
 
