@@ -5,6 +5,9 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:safe_pulse/db/db.dart';
+import 'package:safe_pulse/model/contactdb.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -133,60 +136,127 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
+  Future<void> _shareLocationWithContact() async {
+    if (_currentLocation == null) {
+      _showErrorMessage("Current location not available.");
+      return;
+    }
+
+    // get emergency contacts from local DB
+    final DB db = DB();
+    final List<Dcontacts> emergencyContacts = await db.getContacts();
+
+    if (emergencyContacts.isEmpty) {
+      _showErrorMessage("No emergency contacts found.");
+      return;
+    }
+
+    Dcontacts? selectedContact;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Emergency Contact'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: ListView(
+              children: emergencyContacts
+                  .map((contact) => ListTile(
+                        title: Text(contact.name),
+                        subtitle: Text(contact.number),
+                        onTap: () {
+                          selectedContact = contact;
+                          Navigator.pop(context);
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedContact != null) {
+      // Clean the number to remove spaces, dashes, etc.
+      final String cleanNumber =
+          selectedContact!.number.replaceAll(RegExp(r'\D'), '');
+
+      final String message =
+          "Here is my current location: https://maps.google.com/?q=${_currentLocation!.latitude},${_currentLocation!.longitude}";
+
+      final String smsUrl =
+          'sms:$cleanNumber?body=${Uri.encodeComponent(message)}';
+      final Uri smsUri = Uri.parse(smsUrl);
+
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(
+          smsUri,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        _showErrorMessage("Could not open SMS app.");
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body:Stack(
+      body: Stack(
         children: [
-            _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        :
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentLocation ?? LatLng(6.9271, 79.8612),
-              initialZoom: 2,
-              minZoom: 2,
-              maxZoom: 100,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              ),
-              if (_currentLocation != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentLocation!,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(Icons.location_pin, color: Colors.red),
-                    )
-                  ],
-                ),
-              if (_destinationLocation != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _destinationLocation!,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(Icons.flag, color: Colors.green),
-                    )
-                  ],
-                ),
-              if (_route.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _route,
-                      strokeWidth: 4.0,
-                      color: Colors.blue,
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _currentLocation ?? LatLng(6.9271, 79.8612),
+                    initialZoom: 2,
+                    minZoom: 2,
+                    maxZoom: 100,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     ),
+                    if (_currentLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _currentLocation!,
+                            width: 40,
+                            height: 40,
+                            child: const Icon(Icons.location_pin,
+                                color: Colors.red),
+                          )
+                        ],
+                      ),
+                    if (_destinationLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _destinationLocation!,
+                            width: 40,
+                            height: 40,
+                            child:
+                                const Icon(Icons.flag, color: Colors.green),
+                          )
+                        ],
+                      ),
+                    if (_route.isNotEmpty)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: _route,
+                            strokeWidth: 4.0,
+                            color: Colors.blue,
+                          ),
+                        ],
+                      )
                   ],
-                )
-            ],
-          ),
+                ),
           Positioned(
             top: 0,
             right: 0,
@@ -221,18 +291,29 @@ class _MapPageState extends State<MapPage> {
                 ),
               ]),
             ),
-          )
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        elevation: 0,
-        onPressed: _userCurrentLocation,
-        backgroundColor: Colors.blue,
-        child: const Icon(
-          Icons.my_location,
-          size: 30,
-          color: Colors.white,
-        ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: _shareLocationWithContact,
+            label: const Text("Share"),
+            icon: const Icon(Icons.share),
+            backgroundColor: Colors.green,
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: _userCurrentLocation,
+            backgroundColor: Colors.blue,
+            child: const Icon(
+              Icons.my_location,
+              size: 30,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
