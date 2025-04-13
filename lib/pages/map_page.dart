@@ -35,6 +35,7 @@ class _MapPageState extends State<MapPage> {
 
     Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
+    if (!mounted) return;
     setState(() {
       _currentLocation = LatLng(position.latitude, position.longitude);
       _isLoading = false;
@@ -53,6 +54,7 @@ class _MapPageState extends State<MapPage> {
       if (data.isNotEmpty) {
         final lat = double.parse(data[0]['lat']);
         final lon = double.parse(data[0]['lon']);
+        if (!mounted) return;
         setState(() {
           _destinationLocation = LatLng(lat, lon);
         });
@@ -90,6 +92,7 @@ class _MapPageState extends State<MapPage> {
     List<PointLatLng> decodedPoints =
         polylinePoints.decodePolyline(encodedPolyline);
 
+    if (!mounted) return;
     setState(() {
       _route = decodedPoints
           .map((point) => LatLng(point.latitude, point.longitude))
@@ -139,9 +142,10 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _showErrorMessage(String? message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message!),
+        content: Text(message ?? 'Unknown error'),
       ),
     );
   }
@@ -154,6 +158,8 @@ class _MapPageState extends State<MapPage> {
 
     final DB db = DB();
     final List<Dcontacts> emergencyContacts = await db.getContacts();
+
+    if (!mounted) return;
 
     if (emergencyContacts.isEmpty) {
       _showErrorMessage("No emergency contacts found.");
@@ -237,8 +243,7 @@ class _MapPageState extends State<MapPage> {
                             width: 40,
                             height: 40,
                             child: const Icon(Icons.location_pin,
-                                color: Colors.red
-                                ),
+                                color: Colors.red),
                           )
                         ],
                       ),
@@ -249,8 +254,7 @@ class _MapPageState extends State<MapPage> {
                             point: _destinationLocation!,
                             width: 40,
                             height: 40,
-                            child:
-                                const Icon(Icons.flag, color: Colors.green),
+                            child: const Icon(Icons.flag, color: Colors.green),
                           )
                         ],
                       ),
