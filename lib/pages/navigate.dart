@@ -35,7 +35,7 @@ class _NavigateState extends State<Navigate> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getAppBarTitle(_selectedIndex)),
+       // title: Text(_getAppBarTitle(_selectedIndex)),
         actions: _selectedIndex == 4
             ? [
                 IconButton(
@@ -88,22 +88,5 @@ class _NavigateState extends State<Navigate> {
         ),
       ),
     );
-  }
-
-  String _getAppBarTitle(int index) {
-    switch (index) {
-      case 0:
-        return 'Home Page';
-      case 1:
-        return 'Map Page';
-      case 2:
-        return 'Contact Page';
-      case 3:
-        return 'Chat Page';
-      case 4:
-        return 'Profile Page';
-      default:
-        return '';
-    }
   }
 }
