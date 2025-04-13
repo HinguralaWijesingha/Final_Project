@@ -128,6 +128,14 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  void _goToDestination() {
+    if (_destinationLocation != null) {
+      _mapController.move(_destinationLocation!, 15);
+    } else {
+      _showErrorMessage("Please enter and search for a destination first.");
+    }
+  }
+
   void _showErrorMessage(String? message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -142,7 +150,6 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
-    // get emergency contacts from local DB
     final DB db = DB();
     final List<Dcontacts> emergencyContacts = await db.getContacts();
 
@@ -179,7 +186,6 @@ class _MapPageState extends State<MapPage> {
     );
 
     if (selectedContact != null) {
-
       final String cleanNumber =
           selectedContact!.number.replaceAll(RegExp(r'\D'), '');
 
@@ -312,6 +318,17 @@ class _MapPageState extends State<MapPage> {
               size: 30,
               color: Colors.white,
             ),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: _goToDestination,
+            backgroundColor: Colors.deepPurple,
+            child: const Icon(
+              Icons.directions,
+              size: 30,
+              color: Colors.white,
+            ),
+            tooltip: "Go to Destination",
           ),
         ],
       ),
