@@ -67,6 +67,7 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _fetchRoute() async {
     if (_currentLocation == null || _destinationLocation == null) return;
+
     final url = Uri.parse(
       "http://router.project-osrm.org/route/v1/driving/"
       '${_currentLocation!.longitude},${_currentLocation!.latitude};'
@@ -128,11 +129,12 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  void _goToDestination() {
-    if (_destinationLocation != null) {
-      _mapController.move(_destinationLocation!, 15);
+  void _goToDestination() async {
+    if (_destinationLocation != null && _currentLocation != null) {
+      _mapController.move(_currentLocation!, 15); // Focus on current location
+      await _fetchRoute(); // Fetch and draw route
     } else {
-      _showErrorMessage("Please enter and search for a destination first.");
+      _showErrorMessage("Please search for a destination first.");
     }
   }
 
@@ -219,7 +221,7 @@ class _MapPageState extends State<MapPage> {
                   options: MapOptions(
                     initialCenter: _currentLocation ?? LatLng(6.9271, 79.8612),
                     initialZoom: 2,
-                    minZoom: 2,
+                    minZoom: 0,
                     maxZoom: 100,
                   ),
                   children: [
@@ -235,7 +237,8 @@ class _MapPageState extends State<MapPage> {
                             width: 40,
                             height: 40,
                             child: const Icon(Icons.location_pin,
-                                color: Colors.red),
+                                color: Colors.red
+                                ),
                           )
                         ],
                       ),
@@ -328,7 +331,7 @@ class _MapPageState extends State<MapPage> {
               size: 30,
               color: Colors.white,
             ),
-            tooltip: "Go to Destination",
+            tooltip: "Draw Directions",
           ),
         ],
       ),
