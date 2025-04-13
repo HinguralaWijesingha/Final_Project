@@ -20,7 +20,7 @@ class WomanMinistry extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
         ),
         child: InkWell(
-          onTap: () => _callNumber('109'),
+          onTap: () => _callNumber('1938'),
           child: Container(
             height: 180,
             width: MediaQuery.of(context).size.width * 0.7,
@@ -60,7 +60,7 @@ class WomanMinistry extends StatelessWidget {
                           ),
                           ),
                           Text(
-                          "Call 1-0-9 an Emergency Stuation",
+                          "Call 1-9-3-8 an Emergency Stuation",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize:MediaQuery.of(context).size.width * 0.04
@@ -75,7 +75,7 @@ class WomanMinistry extends StatelessWidget {
                             ),
                             child: Center(
                               child: Text(
-                                '1-0-9',
+                                '1-9-3-8',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
