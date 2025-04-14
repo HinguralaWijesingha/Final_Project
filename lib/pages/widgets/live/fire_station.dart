@@ -32,7 +32,7 @@ class FireStations extends StatelessWidget {
             ),
           ),
           const Text(
-            " FireStations",
+            " Fire Stations",
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 12,
