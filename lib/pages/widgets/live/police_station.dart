@@ -17,7 +17,7 @@ class PoliceStation extends StatelessWidget {
             },
             child: Card(
               elevation: 3,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(20)),
               ),
               child: Container(
@@ -31,7 +31,7 @@ class PoliceStation extends StatelessWidget {
               ),
             ),
           ),
-          Text(
+          const Text(
             "Police Station",
             style: TextStyle(
               fontWeight: FontWeight.bold,
