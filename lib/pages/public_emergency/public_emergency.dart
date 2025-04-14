@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/widgets/public_contact/ambulance.dart';
+import 'package:safe_pulse/pages/widgets/public_contact/fire.dart';
 import 'package:safe_pulse/pages/widgets/public_contact/police_emergency.dart';
 import 'package:safe_pulse/pages/widgets/public_contact/woman.dart';
 
@@ -18,6 +19,7 @@ class PublicEmergencyContacts extends StatelessWidget {
           PoliceContact(),
           Ambulance(),
           WomanMinistry(),
+          FireStation(),
         ],
       ),
     );
