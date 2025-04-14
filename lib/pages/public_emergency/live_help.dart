@@ -11,14 +11,14 @@ class LiveHelp extends StatelessWidget {
 
   static Future<void> openMap(String placeType) async {
     try {
-      // Step 1: Check if location services are enabled
+      // location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         Fluttertoast.showToast(msg: "Location services are disabled.");
         return;
       }
 
-      // Step 2: Check permission
+      //  permission checking
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -33,7 +33,7 @@ class LiveHelp extends StatelessWidget {
         return;
       }
 
-      // Step 3: Get current position
+      //  Get current location
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -41,7 +41,7 @@ class LiveHelp extends StatelessWidget {
       final latitude = position.latitude;
       final longitude = position.longitude;
 
-      // Step 4: Build Google Maps query with current location
+      //   Google Maps query with current location
       final query = "$placeType near $latitude,$longitude";
       final Uri googleMapUrl = Uri.parse(
         'https://www.google.com/maps/search/?api=1&query=$query',
@@ -66,7 +66,7 @@ class LiveHelp extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left Column: Police Station + Fire Station
+              //  Police Station , Fire Station
               Column(
                 children:  [
                   PoliceStation(onMapFunction: openMap),
@@ -75,7 +75,7 @@ class LiveHelp extends StatelessWidget {
                 ],
               ),
               SizedBox(width: 30),
-              // Right: Hospital
+              //Hospital
               Hospital(onMapFunction: openMap),
             ],
           ),
