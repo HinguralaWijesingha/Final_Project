@@ -58,18 +58,27 @@ class LiveHelp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 90,
-      width: MediaQuery.of(context).size.width,
-      child: ListView(
-        physics: const BouncingScrollPhysics(),
-        scrollDirection: Axis.horizontal,
-        children: const [
-          PoliceStation(onMapFunction: openMap),
-          SizedBox(width: 30),
-          Hospital(onMapFunction: openMap),
-          SizedBox(width: 30),
-          FireStations(onMapFunction: openMap),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column: Police Station + Fire Station
+              Column(
+                children:  [
+                  PoliceStation(onMapFunction: openMap),
+                  SizedBox(height: 20),
+                  FireStations(onMapFunction: openMap),
+                ],
+              ),
+              SizedBox(width: 30),
+              // Right: Hospital
+              Hospital(onMapFunction: openMap),
+            ],
+          ),
         ],
       ),
     );
