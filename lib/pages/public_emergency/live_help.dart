@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:safe_pulse/pages/widgets/live/fire_station.dart';
 import 'package:safe_pulse/pages/widgets/live/hospital.dart';
 import 'package:safe_pulse/pages/widgets/live/police_station.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -67,6 +68,8 @@ class LiveHelp extends StatelessWidget {
           PoliceStation(onMapFunction: openMap),
           SizedBox(width: 30),
           Hospital(onMapFunction: openMap),
+          SizedBox(width: 30),
+          FireStations(onMapFunction: openMap),
         ],
       ),
     );
