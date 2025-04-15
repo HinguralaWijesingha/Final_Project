@@ -24,7 +24,7 @@ class BusStation extends StatelessWidget {
                 height: 50,
                 width: 50,
                 child: Center(
-                  child: Image.asset('assets/bs.png',
+                  child: Image.asset('assets/bc.png',
                     height: 32,
                   ),
                 ),
