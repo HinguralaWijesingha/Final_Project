@@ -75,7 +75,7 @@ class LiveHelp extends StatelessWidget {
                   FireStations(onMapFunction: openMap),
                 ],
               ),
-              SizedBox(width: 30),
+              SizedBox(width: 40),
               //Hospital
               Column(
                 children: [
