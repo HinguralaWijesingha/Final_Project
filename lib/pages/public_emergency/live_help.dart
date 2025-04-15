@@ -76,7 +76,7 @@ class LiveHelp extends StatelessWidget {
                 ],
               ),
               SizedBox(width: 40),
-              //Hospital
+              //Hospital, Bus Station
               Column(
                 children: [
                   Hospital(onMapFunction: openMap),
