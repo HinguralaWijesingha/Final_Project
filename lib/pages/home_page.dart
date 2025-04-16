@@ -5,7 +5,6 @@ import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -32,44 +31,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendEmergencyMessage() async {
-    // Get current location
-    String locationMessage = "";
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        locationMessage = "\n\n📍 Location services are disabled";
-      } else {
-        LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-          if (permission == LocationPermission.denied) {
-            locationMessage = "\n\n📍 Location permission denied";
-          }
-        }
-        
-        if (permission == LocationPermission.whileInUse || 
-            permission == LocationPermission.always) {
-          Position position = await Geolocator.getCurrentPosition();
-          locationMessage = "\n\n📍 My current location: "
-              "https://www.google.com/maps/search/?api=1&query="
-              "${position.latitude},${position.longitude}";
-        }
-      }
-    } catch (e) {
-      locationMessage = "\n\n⚠️ Could not get location: ${e.toString()}";
-    }
-
     // Compose the emergency message
-    const String baseMessage = "🚨 EMERGENCY ALERT 🚨\n"
+    const String message = "🚨 EMERGENCY ALERT 🚨\n"
         "I need immediate help!\n"
         "This is an automated message from SafePulse app.";
-    
-    final String fullMessage = baseMessage + locationMessage;
 
     // Send to all emergency contacts
     for (var contact in emergencyContacts) {
       final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
-      final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(fullMessage)}');
+      final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(message)}');
       
       try {
         if (await canLaunchUrl(smsUri)) {
