@@ -176,6 +176,25 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
+
+                // Logout Button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      Navigator.of(context).pushReplacementNamed('LoginPage');
+                    },
+                    child: const Text(
+                      'Logout',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                ),
               ],
             );
           } else if (snapshot.hasError) {
