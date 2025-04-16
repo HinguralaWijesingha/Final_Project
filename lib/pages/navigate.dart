@@ -34,17 +34,6 @@ class _NavigateState extends State<Navigate> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_getAppBarTitle(_selectedIndex)),
-        actions: _selectedIndex == 4
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () => _logout(context),
-                ),
-              ]
-            : null,
-      ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         color: Colors.blue,
