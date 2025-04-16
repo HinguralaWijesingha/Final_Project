@@ -111,22 +111,22 @@ class _HomePageState extends State<HomePage> {
                     itemCount: emergencyContacts.length,
                     itemBuilder: (context, index) {
                       final contact = emergencyContacts[index];
+                      final String initial = contact.name.isNotEmpty 
+                          ? contact.name[0].toUpperCase()
+                          : '?';
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: Colors.red[100],
-                          child: const Icon(Icons.emergency, color: Colors.red),
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                         title: Text(contact.name),
                         subtitle: Text(contact.number),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.call, color: Colors.red),
-                          onPressed: () {
-                            final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
-                            final callUri = Uri.parse('tel:$phoneNumber');
-                            launchUrl(callUri);
-                            Navigator.pop(context);
-                          },
-                        ),
                       );
                     },
                   ),
