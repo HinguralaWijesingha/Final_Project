@@ -218,94 +218,98 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _currentLocation ?? LatLng(6.9271, 79.8612),
-                    initialZoom: 2,
-                    minZoom: 0,
-                    maxZoom: 100,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      body: SafeArea( 
+        child: Stack(
+          children: [
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter:
+                          _currentLocation ?? const LatLng(6.9271, 79.8612),
+                      initialZoom: 2,
+                      minZoom: 0,
+                      maxZoom: 100,
                     ),
-                    if (_currentLocation != null)
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: _currentLocation!,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(Icons.location_pin,
-                                color: Colors.red),
-                          )
-                        ],
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       ),
-                    if (_destinationLocation != null)
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: _destinationLocation!,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(Icons.flag, color: Colors.green),
-                          )
-                        ],
+                      if (_currentLocation != null)
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: _currentLocation!,
+                              width: 40,
+                              height: 40,
+                              child: const Icon(Icons.location_pin,
+                                  color: Colors.red),
+                            )
+                          ],
+                        ),
+                      if (_destinationLocation != null)
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: _destinationLocation!,
+                              width: 40,
+                              height: 40,
+                              child:
+                                  const Icon(Icons.flag, color: Colors.green),
+                            )
+                          ],
+                        ),
+                      if (_route.isNotEmpty)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: _route,
+                              strokeWidth: 4.0,
+                              color: Colors.blue,
+                            ),
+                          ],
+                        )
+                    ],
+                  ),
+            Positioned(
+              top: 0,
+              right: 0,
+              left: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _locationController,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintText: 'Enter a location',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16),
                       ),
-                    if (_route.isNotEmpty)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: _route,
-                            strokeWidth: 4.0,
-                            color: Colors.blue,
-                          ),
-                        ],
-                      )
-                  ],
-                ),
-          Positioned(
-            top: 0,
-            right: 0,
-            left: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _locationController,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      hintText: 'Enter a location',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    final location = _locationController.text.trim();
-                    if (location.isNotEmpty) {
-                      _getDestinationLocation(location);
-                    }
-                  },
-                  icon: const Icon(Icons.search),
-                ),
-              ]),
+                  IconButton(
+                    onPressed: () {
+                      final location = _locationController.text.trim();
+                      if (location.isNotEmpty) {
+                        _getDestinationLocation(location);
+                      }
+                    },
+                    icon: const Icon(Icons.search),
+                  ),
+                ]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
