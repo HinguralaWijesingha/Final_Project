@@ -4,6 +4,8 @@ import 'package:safe_pulse/pages/public_emergency/live_help.dart';
 import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -29,7 +31,67 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // Function to handle SOS button press
+  Future<void> _sendEmergencyMessage() async {
+    // Get current location
+    String locationMessage = "";
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        locationMessage = "\n\n📍 Location services are disabled";
+      } else {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+          if (permission == LocationPermission.denied) {
+            locationMessage = "\n\n📍 Location permission denied";
+          }
+        }
+        
+        if (permission == LocationPermission.whileInUse || 
+            permission == LocationPermission.always) {
+          Position position = await Geolocator.getCurrentPosition();
+          locationMessage = "\n\n📍 My current location: "
+              "https://www.google.com/maps/search/?api=1&query="
+              "${position.latitude},${position.longitude}";
+        }
+      }
+    } catch (e) {
+      locationMessage = "\n\n⚠️ Could not get location: ${e.toString()}";
+    }
+
+    // Compose the emergency message
+    const String baseMessage = "🚨 EMERGENCY ALERT 🚨\n"
+        "I need immediate help!\n"
+        "This is an automated message from SafePulse app.";
+    
+    final String fullMessage = baseMessage + locationMessage;
+
+    // Send to all emergency contacts
+    for (var contact in emergencyContacts) {
+      final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
+      final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(fullMessage)}');
+      
+      try {
+        if (await canLaunchUrl(smsUri)) {
+          await launchUrl(smsUri);
+        } else {
+          print("Could not launch SMS for ${contact.name}");
+        }
+      } catch (e) {
+        print("Error sending to ${contact.name}: $e");
+      }
+    }
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Emergency alert sent to all contacts!"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
   void _showEmergencyPopup() {
     showModalBottomSheet(
       context: context,
@@ -89,15 +151,10 @@ class _HomePageState extends State<HomePage> {
                         trailing: IconButton(
                           icon: const Icon(Icons.call, color: Colors.red),
                           onPressed: () {
-                            // Implement call functionality
-                            // You might use url_launcher package to make calls
+                            final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
+                            final callUri = Uri.parse('tel:$phoneNumber');
+                            launchUrl(callUri);
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Calling ${contact.name}..."),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
                           },
                         ),
                       );
@@ -116,13 +173,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   onPressed: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Alert sent to all emergency contacts!"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    // Implement sending alert to all contacts
+                    _sendEmergencyMessage();
                   },
                   child: const Text(
                     "SEND EMERGENCY ALERT TO ALL",
