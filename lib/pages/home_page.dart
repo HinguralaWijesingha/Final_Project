@@ -146,7 +146,7 @@ class _HomePageState extends State<HomePage> {
                     _sendEmergencyMessage();
                   },
                   child: const Text(
-                    "SEND EMERGENCY ALERT TO ALL",
+                    "Send EMERGENCY ALERT to all",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
