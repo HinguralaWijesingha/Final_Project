@@ -71,7 +71,7 @@ class LiveHelp extends StatelessWidget {
               Column(
                 children:  [
                   PoliceStation(onMapFunction: openMap),
-                  SizedBox(height: 20),
+                  SizedBox(height: 10),
                   FireStations(onMapFunction: openMap),
                 ],
               ),
@@ -80,7 +80,7 @@ class LiveHelp extends StatelessWidget {
               Column(
                 children: [
                   Hospital(onMapFunction: openMap),
-                  SizedBox(height: 20),
+                  SizedBox(height: 10),
                   BusStation(onMapFunction: openMap),
                 ],
               ),

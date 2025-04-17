@@ -263,7 +263,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 8),
               const LiveHelp(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               const Text(
                 "Emergency SOS",
                 style: TextStyle(
