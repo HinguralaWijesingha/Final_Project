@@ -50,7 +50,7 @@ class _NavigateState extends State<Navigate> {
                 _selectedIndex = index;
               });
             },
-            padding: const EdgeInsets.all(9),
+            padding: const EdgeInsets.all(8),
             tabs: const [
               GButton(
                 icon: Icons.home,
@@ -78,20 +78,5 @@ class _NavigateState extends State<Navigate> {
       ),
     );
   }
-    String _getAppBarTitle(int index) {
-    switch (index) {
-      case 0:
-        return 'Home Page';
-      case 1:
-        return 'Map Page';
-      case 2:
-        return 'Contact Page';
-      case 3:
-        return 'Chat Page';
-      case 4:
-        return 'Profile Page';
-      default:
-        return '';
-    }
   }
-}
+
