@@ -52,8 +52,14 @@ class _MapPageState extends State<MapPage> {
       final data = json.decode(response.body);
 
       if (data.isNotEmpty) {
-        final lat = double.parse(data[0]['lat']);
-        final lon = double.parse(data[0]['lon']);
+        final lat = (data[0]['lat'] is String)
+            ? double.parse(data[0]['lat'])
+            : data[0]['lat'].toDouble();
+
+        final lon = (data[0]['lon'] is String)
+            ? double.parse(data[0]['lon'])
+            : data[0]['lon'].toDouble();
+
         if (!mounted) return;
         setState(() {
           _destinationLocation = LatLng(lat, lon);
@@ -218,7 +224,7 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea( 
+      body: SafeArea(
         child: Stack(
           children: [
             _isLoading
