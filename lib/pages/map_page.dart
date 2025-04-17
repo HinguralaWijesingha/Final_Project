@@ -322,7 +322,7 @@ class _MapPageState extends State<MapPage> {
         children: [
           FloatingActionButton.extended(
             onPressed: _shareLocationWithContact,
-            label: const Text("Share"),
+            label: const Text(""),
             icon: const Icon(Icons.share),
             backgroundColor: Colors.green,
           ),
