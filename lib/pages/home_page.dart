@@ -16,6 +16,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final DB _db = DB();
   List<Dcontacts> emergencyContacts = [];
+  bool isSendingAlerts = false;
 
   @override
   void initState() {
@@ -31,33 +32,87 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendEmergencyMessage() async {
-    // Compose the emergency message
+    if (emergencyContacts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No emergency contacts to send to!"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isSendingAlerts = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Sending emergency alerts..."),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
     const String message = "🚨 EMERGENCY ALERT 🚨\n"
         "I need immediate help!\n"
         "This is an automated message from SafePulse app.";
 
-    // Send to all emergency contacts
+    int successfulSends = 0;
+    int failedSends = 0;
+    
     for (var contact in emergencyContacts) {
-      final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
-      final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(message)}');
-      
       try {
+        final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
+        if (phoneNumber.isEmpty) {
+          failedSends++;
+          continue;
+        }
+        
+        final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(message)}');
+        
         if (await canLaunchUrl(smsUri)) {
           await launchUrl(smsUri);
+          successfulSends++;
         } else {
-          print("Could not launch SMS for ${contact.name}");
+          debugPrint("Could not launch SMS for ${contact.name}");
+          failedSends++;
         }
       } catch (e) {
-        print("Error sending to ${contact.name}: $e");
+        debugPrint("Error sending to ${contact.name}: $e");
+        failedSends++;
       }
     }
 
-    // Show confirmation
+    setState(() {
+      isSendingAlerts = false;
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Emergency alert sent to all contacts!"),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 5),
+      SnackBar(
+        content: Text(
+          successfulSends > 0
+            ? "Emergency alert sent to $successfulSends contact(s)"
+            : "Failed to send emergency alerts",
+          style: const TextStyle(fontSize: 16),
+        ),
+        backgroundColor: successfulSends > 0 ? Colors.red : Colors.orange,
+        duration: const Duration(seconds: 5),
+        action: failedSends > 0
+            ? SnackBarAction(
+                label: 'Details',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to send to $failedSends contact(s)'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                },
+              )
+            : null,
       ),
     );
   }
@@ -102,7 +157,10 @@ class _HomePageState extends State<HomePage> {
               if (emergencyContacts.isEmpty)
                 const Expanded(
                   child: Center(
-                    child: Text("No emergency contacts added"),
+                    child: Text(
+                      "No emergency contacts added",
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 )
               else
@@ -125,7 +183,10 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        title: Text(contact.name),
+                        title: Text(
+                          contact.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text(contact.number),
                       );
                     },
@@ -140,18 +201,31 @@ class _HomePageState extends State<HomePage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _sendEmergencyMessage();
-                  },
-                  child: const Text(
-                    "Send EMERGENCY ALERT to all",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  onPressed: isSendingAlerts
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          _sendEmergencyMessage();
+                        },
+                  child: isSendingAlerts
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Text(
+                          "SEND EMERGENCY ALERT TO ALL",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -166,44 +240,44 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text("Public Emergency Contacts",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    )),
+              const Text(
+                "Public Emergency Contacts",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
+              const SizedBox(height: 8),
               const PublicEmergencyContacts(),
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text("Live Help",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    )),
+              const SizedBox(height: 16),
+              const Text(
+                "Live Help",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
+              const SizedBox(height: 8),
               const LiveHelp(),
-              // SOS Button Section
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text("Emergency SOS",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    )),
+              const SizedBox(height: 16),
+              const Text(
+                "Emergency SOS",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
+              const SizedBox(height: 16),
               Center(
-                child: InkWell(
+                child: GestureDetector(
                   onTap: _showEmergencyPopup,
-                  borderRadius: BorderRadius.circular(50),
                   child: Container(
-                    width: 100,
-                    height: 100,
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
@@ -221,7 +295,7 @@ class _HomePageState extends State<HomePage> {
                         "SOS",
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
