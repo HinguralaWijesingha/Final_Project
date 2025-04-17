@@ -56,60 +56,63 @@ class _AddContactPageState extends State<AddContactPage> {
     if (contactList == null) {
       contactList = [];
     }
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          children: [
-            Button(
-                onTap: () async {
-                  bool result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const ContactPage()));
-                  if (result == true) {
-                    showList();
-                  }
-                },
-                text: "Add Emergency Contact"),
-            Expanded(
-              child: ListView.builder(
-                //shrinkWrap: true,
-                itemCount: count,
-                itemBuilder: (BuildContext context, int index) {
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: ListTile(
-                        title: Text(contactList![index].name),
-                        trailing: Container(
-                          width: 100,
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.call),
-                                color: Colors.red,
-                                onPressed: () async{
-                                  await FlutterPhoneDirectCaller.callNumber(contactList![index].number);
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete),
-                                color: Colors.red,
-                                onPressed: () {
-                                  deleteContact(contactList![index]);
-                                },
-                              ),
-                            ],
+    return Scaffold(
+      body: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            children: [
+              Button(
+                  onTap: () async {
+                    bool result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ContactPage()));
+                    if (result == true) {
+                      showList();
+                    }
+                  },
+                  text: "Add Emergency Contact"),
+              Expanded(
+                child: ListView.builder(
+                  //shrinkWrap: true,
+                  itemCount: count,
+                  itemBuilder: (BuildContext context, int index) {
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ListTile(
+                          title: Text(contactList![index].name),
+                          trailing: Container(
+                            width: 100,
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.call),
+                                  color: Colors.red,
+                                  onPressed: () async {
+                                    await FlutterPhoneDirectCaller.callNumber(
+                                        contactList![index].number);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  color: Colors.red,
+                                  onPressed: () {
+                                    deleteContact(contactList![index]);
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
