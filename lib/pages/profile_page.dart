@@ -161,38 +161,38 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Delete Account Button
+                // Delete Account + Logout Buttons
                 Padding(
-                  padding: const EdgeInsets.all(25),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    onPressed: () => _confirmDeleteAccount(context),
-                    child: const Text(
-                      'Delete My Account',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                ),
-
-                // Logout Button
-                Padding(
-                  padding: const EdgeInsets.all(25),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      Navigator.of(context).pushReplacementNamed('LoginPage');
-                    },
-                    child: const Text(
-                      'Logout',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Column(
+                    children: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          minimumSize: const Size(double.infinity, 50), // Full width + consistent height
+                        ),
+                        onPressed: () => _confirmDeleteAccount(context),
+                        child: const Text(
+                          'Delete My Account',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          minimumSize: const Size(double.infinity, 45),
+                        ),
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          Navigator.of(context).pushReplacementNamed('LoginPage');
+                        },
+                        child: const Text(
+                          'Logout',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
