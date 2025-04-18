@@ -241,69 +241,72 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Public Emergency Contacts",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+          child: SingleChildScrollView(
+            //padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Public Emergency Contacts",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const PublicEmergencyContacts(),
-              const SizedBox(height: 16),
-              const Text(
-                "Live Help",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                const SizedBox(height: 8),
+                const PublicEmergencyContacts(),
+                const SizedBox(height: 16),
+                const Text(
+                  "Live Help",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const LiveHelp(),
-              const SizedBox(height: 8),
-              const Text(
-                "Emergency SOS",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                const SizedBox(height: 8),
+                const LiveHelp(),
+                const SizedBox(height: 8),
+                const Text(
+                  "Emergency SOS",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: GestureDetector(
-                  onTap: _showEmergencyPopup,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.5),
-                          spreadRadius: 5,
-                          blurRadius: 7,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "SOS",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                Center(
+                  child: GestureDetector(
+                    onTap: _showEmergencyPopup,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.5),
+                            spreadRadius: 5,
+                            blurRadius: 7,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "SOS",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
