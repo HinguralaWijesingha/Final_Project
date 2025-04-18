@@ -59,14 +59,6 @@ class _SettingState extends State<Setting> {
                         },
                       ),
                       ListTile(
-                        leading: const Icon(Icons.lock, color: Colors.black),
-                        title: const Text("Change Password"),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          // Add Change Password navigation here if needed
-                        },
-                      ),
-                      ListTile(
                         leading: const Icon(Icons.logout, color: Colors.black),
                         title: const Text("Logout"),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
