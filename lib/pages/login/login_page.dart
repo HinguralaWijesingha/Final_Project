@@ -17,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   // Controllers
   final TextEditingController userController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false; //
 
   @override
   void initState() {
@@ -33,38 +34,27 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sign in method
   void userIn() async {
-    // Show loading circle
+    //loading circle
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+    
+    // sign in
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: userController.text.trim(),
+      password: passwordController.text.trim()
     );
 
-    try {
-      // Attempt sign-in
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: userController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
-      // Pop the loading circle
-      Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      // Pop the loading circle
-      Navigator.pop(context);
-
-      // Show error messages
-      if (e.code == 'user-not-found') {
-        showErrorMessage("User not found");
-      } else if (e.code == 'wrong-password') {
-        showErrorMessage("Wrong Password");
-      } else {
-        showErrorMessage(e.message ?? "An error occurred");
-      }
-    }
+    // pop the loading circle
+    Navigator.pop(context);
   }
 
-  void showErrorMessage(String message) {
+  void showErrormessage(String message) {
     showDialog(
       context: context,
       builder: (context) {
@@ -74,6 +64,23 @@ class _LoginPageState extends State<LoginPage> {
             child: Text(
               message,
               style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void wrongPasswordMessage() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const AlertDialog(
+          backgroundColor: Colors.blue,
+          title: Center(
+            child: Text(
+              "Wrong Password",
+              style: TextStyle(color: Colors.white),
             ),
           ),
         );
@@ -113,11 +120,11 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 25),
 
-                // Email input
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: TextField(
                     controller: userController,
+                    obscureText: false,
                     decoration: InputDecoration(
                       enabledBorder: OutlineInputBorder(
                         borderSide: const BorderSide(color: Colors.white),
@@ -136,7 +143,6 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 15),
 
-                // Password input
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: TextField(
@@ -160,7 +166,6 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 10),
 
-                // Forgot password
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -171,8 +176,9 @@ class _LoginPageState extends State<LoginPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgetPasswordPage(),
+                              builder: (context) {
+                                return const ForgetPasswordPage();
+                              },
                             ),
                           );
                         },
@@ -196,7 +202,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 30),
 
-                // Divider
+                // Sign in method divider
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -217,11 +223,13 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 40),
 
-                // Social login 
+                // Social login buttons
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ImageText(imagePath: 'assets/google.png'),
+                    //SizedBox(width: 20),
+                    //ImageText(imagePath: 'assets/apple.png'),
                   ],
                 ),
 
@@ -234,10 +242,11 @@ class _LoginPageState extends State<LoginPage> {
                     const Text("Not a member?"),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: () {
+                      onTap: (){
+                        //print("Register now tapped!");
                         widget.onTap?.call();
                       },
-                      child: const Text(
+                      child:  const Text(
                         "Register Now",
                         style: TextStyle(
                           color: Colors.blue,
