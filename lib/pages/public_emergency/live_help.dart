@@ -8,7 +8,7 @@ import 'package:safe_pulse/pages/widgets/live/police_station.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LiveHelp extends StatelessWidget {
-  const LiveHelp({Key? key}) : super(key: key);
+  const LiveHelp({super.key});
 
   static Future<void> openMap(String placeType) async {
     try {

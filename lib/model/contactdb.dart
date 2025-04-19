@@ -15,8 +15,8 @@ class Dcontacts {
     return 'Dcontacts{_id: $_id, _name: $_name, _number: $_number}';
   }
 
-  set number(String newNumber) => this._number = newNumber;
-  set name(String newName) => this._name = newName;
+  set number(String newNumber) => _number = newNumber;
+  set name(String newName) => _name = newName;
 
   Map<String, dynamic> toMap() {
     var map = new Map<String, dynamic>();
@@ -29,8 +29,8 @@ class Dcontacts {
   }
 
   Dcontacts.fromMapObject(Map<String, dynamic> map) {
-    this._id = map['id'];
-    this._name = map['name'];
-    this._number = map['number'];
+    _id = map['id'];
+    _name = map['name'];
+    _number = map['number'];
   }
 }

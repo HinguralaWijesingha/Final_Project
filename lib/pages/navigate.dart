@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:safe_pulse/pages/add_contact_page.dart';
@@ -26,10 +25,6 @@ class _NavigateState extends State<Navigate> {
     //const Setting(),
   ];
 
-  void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushReplacementNamed('/login');
-  }
 
   @override
   Widget build(BuildContext context) {
