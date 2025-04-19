@@ -46,7 +46,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -58,11 +58,11 @@ class _FakeCallPageState extends State<FakeCallPage> {
             const SizedBox(height: 20),
             const Text(
               'John Doe',
-              style: TextStyle(color: Colors.white, fontSize: 30),
+              style: TextStyle(color: Colors.black, fontSize: 30),
             ),
             const Text(
               'Incoming Call...',
-              style: TextStyle(color: Colors.white54, fontSize: 18),
+              style: TextStyle(color: Colors.black, fontSize: 18),
             ),
             const SizedBox(height: 50),
             Row(
