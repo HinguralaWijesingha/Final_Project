@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/profile_page.dart';
+import 'package:safe_pulse/pages/widgets/fake_call.dart';
 
 class Setting extends StatefulWidget {
   const Setting({super.key});
@@ -55,6 +56,17 @@ class _SettingState extends State<Setting> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const ProfilePage()),
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.phone, color: Colors.black),
+                        title: const Text("Fake Call"),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const FakeCallPage()),
                           );
                         },
                       ),
