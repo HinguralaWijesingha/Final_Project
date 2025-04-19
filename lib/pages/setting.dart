@@ -50,7 +50,9 @@ class _SettingState extends State<Setting> {
                       const Divider(),
                       ListTile(
                         leading: const Icon(Icons.edit, color: Colors.black),
-                        title: const Text("Edit Profile"),
+                        title: const Text("Edit Profile",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.push(
@@ -59,9 +61,12 @@ class _SettingState extends State<Setting> {
                           );
                         },
                       ),
+                      const SizedBox(height: 10),
                       ListTile(
                         leading: const Icon(Icons.phone, color: Colors.black),
-                        title: const Text("Fake Call"),
+                        title: const Text("Fake Call",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.push(
@@ -70,9 +75,12 @@ class _SettingState extends State<Setting> {
                           );
                         },
                       ),
+                      const SizedBox(height: 10),
                       ListTile(
                         leading: const Icon(Icons.logout, color: Colors.black),
-                        title: const Text("Logout"),
+                        title: const Text("Logout",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                          onTap: () async {
                           await FirebaseAuth.instance.signOut();
