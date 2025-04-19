@@ -1,10 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 
 class PoliceContact extends StatelessWidget {
-  const PoliceContact({Key? key}) : super(key: key);
+  const PoliceContact({super.key});
 
   _callNumber(String number) async{
   await FlutterPhoneDirectCaller.callNumber(number);

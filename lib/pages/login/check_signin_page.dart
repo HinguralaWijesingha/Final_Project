@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/navigate.dart';
 import 'package:safe_pulse/pages/login/login_or_register.dart';
 class UserCheckPage extends StatelessWidget {
-  const UserCheckPage({Key? key});
+  const UserCheckPage({super.key});
 
   @override
   Widget build(BuildContext context) {

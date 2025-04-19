@@ -1,10 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 
 class WomanMinistry extends StatelessWidget {
-  const WomanMinistry({Key? key}) : super(key: key);
+  const WomanMinistry({super.key});
 
   _callNumber(String number) async{
   await FlutterPhoneDirectCaller.callNumber(number);

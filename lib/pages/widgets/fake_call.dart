@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_vibrate/flutter_vibrate.dart';
 
 class FakeCallPage extends StatefulWidget {
-  const FakeCallPage({Key? key}) : super(key: key);
+  const FakeCallPage({super.key});
 
   @override
   _FakeCallPageState createState() => _FakeCallPageState();
@@ -27,7 +27,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
   void _startVibration() async {
     bool canVibrate = await Vibrate.canVibrate;
     if (canVibrate) {
-      final pattern = [Duration(milliseconds: 500), Duration(milliseconds: 1000)];
+      final pattern = [const Duration(milliseconds: 500), const Duration(milliseconds: 1000)];
       Vibrate.vibrateWithPauses(pattern);
     }
   }

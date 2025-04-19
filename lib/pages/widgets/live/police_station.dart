@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class PoliceStation extends StatelessWidget {
   final Function(String) onMapFunction;
-  const PoliceStation({Key? key, required this.onMapFunction}) : super(key: key);
+  const PoliceStation({super.key, required this.onMapFunction});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +19,7 @@ class PoliceStation extends StatelessWidget {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(20)),
               ),
-              child: Container(
+              child: SizedBox(
                 height: 50,
                 width: 50,
                 child: Center(

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class BusStation extends StatelessWidget {
   final Function(String) onMapFunction;
-  const BusStation({Key? key, required this.onMapFunction}) : super(key: key);
+  const BusStation({super.key, required this.onMapFunction});
 
   @override
   Widget build(BuildContext context) {
@@ -17,10 +16,10 @@ class BusStation extends StatelessWidget {
             },
             child: Card(
               elevation: 3,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(20)),
               ),
-              child: Container(
+              child: SizedBox(
                 height: 50,
                 width: 50,
                 child: Center(
@@ -31,7 +30,7 @@ class BusStation extends StatelessWidget {
               ),
             ),
           ),
-          Text(
+          const Text(
             " Bus Stations",
             style: TextStyle(
               fontWeight: FontWeight.bold,

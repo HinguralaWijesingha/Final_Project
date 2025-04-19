@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:safe_pulse/pages/public_emergency/live_help.dart';
 import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 import 'package:safe_pulse/db/db.dart';
@@ -7,7 +6,7 @@ import 'package:safe_pulse/model/contactdb.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();

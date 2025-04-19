@@ -5,7 +5,7 @@ import 'package:safe_pulse/pages/widgets/public_contact/police_emergency.dart';
 import 'package:safe_pulse/pages/widgets/public_contact/woman.dart';
 
 class PublicEmergencyContacts extends StatelessWidget {
-  const PublicEmergencyContacts({Key? key}) : super(key: key);
+  const PublicEmergencyContacts({super.key});
 
   @override
   Widget build(BuildContext context) {

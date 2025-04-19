@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/profile_page.dart';
 
 class Setting extends StatefulWidget {
-  const Setting({Key? key}) : super(key: key);
+  const Setting({super.key});
 
   @override
   State<Setting> createState() => _SettingState();

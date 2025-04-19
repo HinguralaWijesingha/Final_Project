@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:safe_pulse/pages/login/forget_password_page.dart';
 import 'package:safe_pulse/text/button.dart';
 import 'package:safe_pulse/text/image.dart';

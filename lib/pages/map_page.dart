@@ -340,12 +340,12 @@ class _MapPageState extends State<MapPage> {
           FloatingActionButton(
             onPressed: _goToDestination,
             backgroundColor: Colors.deepPurple,
+            tooltip: "Draw Directions",
             child: const Icon(
               Icons.directions,
               size: 30,
               color: Colors.white,
             ),
-            tooltip: "Draw Directions",
           ),
         ],
       ),
