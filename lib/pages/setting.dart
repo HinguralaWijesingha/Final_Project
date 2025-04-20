@@ -34,12 +34,6 @@ class _SettingState extends State<Setting> {
                     children: [
                       const Icon(Icons.person, size: 70, color: Colors.black),
                       const SizedBox(height: 10),
-                      Text(
-                        currentUser.email ?? 'No email',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black, fontSize: 16),
-                      ),
-                      const SizedBox(height: 10),
                       if (userData != null)
                         Text(
                           'Name: ${userData['name'] ?? 'N/A'}',
