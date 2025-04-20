@@ -249,7 +249,7 @@ class _HomePageState extends State<HomePage> {
                   "Public Emergency Contacts",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -259,7 +259,7 @@ class _HomePageState extends State<HomePage> {
                   "Live Help",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -269,7 +269,7 @@ class _HomePageState extends State<HomePage> {
                   "Emergency SOS",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 16),
