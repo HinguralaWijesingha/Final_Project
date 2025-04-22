@@ -69,35 +69,52 @@ class _ChatPageState extends State<ChatPage> {
   final Telephony telephony = Telephony.instance;
   bool _isSending = false;
   Timer? _messageRefreshTimer;
+  ReceivePort? _receivePort;
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
-    _loadMessages();
-    _initSmsReceiver();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _loadContacts();
+    await _loadMessages();
+    await _initSmsReceiver();
     
     _messageRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _loadMessages();
+      if (mounted) {
+        _loadMessages();
+      }
     });
-    
     
     _setupBackgroundChannel();
   }
-  
+
   @override
   void dispose() {
-    _messageRefreshTimer?.cancel();
+    _cleanupResources();
     super.dispose();
   }
-  
-  Future<void> _setupBackgroundChannel() async {
-    final port = ReceivePort();
-    IsolateNameServer.registerPortWithName(port.sendPort, _isolateName);
+
+  void _cleanupResources() {
+    _messageRefreshTimer?.cancel();
+    _messageController.dispose();
     
-    port.listen((dynamic message) {
-      debugPrint("Received message from background isolate: $message");
-      _loadMessages();
+    if (_receivePort != null) {
+      _receivePort!.close();
+      IsolateNameServer.removePortNameMapping(_isolateName);
+    }
+  }
+
+  Future<void> _setupBackgroundChannel() async {
+    _receivePort = ReceivePort();
+    IsolateNameServer.registerPortWithName(_receivePort!.sendPort, _isolateName);
+    
+    _receivePort!.listen((dynamic message) {
+      if (mounted) {
+        _loadMessages();
+      }
     });
   }
 
@@ -115,10 +132,12 @@ class _ChatPageState extends State<ChatPage> {
       debugPrint("SMS listener initialized successfully");
     } else {
       debugPrint("SMS permissions denied");
-      Fluttertoast.showToast(
-        msg: "SMS permissions denied. Cannot receive messages.",
-        toastLength: Toast.LENGTH_LONG,
-      );
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: "SMS permissions denied. Cannot receive messages.",
+          toastLength: Toast.LENGTH_LONG,
+        );
+      }
     }
   }
 
@@ -140,14 +159,16 @@ class _ChatPageState extends State<ChatPage> {
       timestamp: now,
     );
     
-    setState(() {
-      messages.add(newMessage);
-      _sortMessages();
-    });
+    if (mounted) {
+      setState(() {
+        messages.add(newMessage);
+        _sortMessages();
+      });
+    }
     
     await _saveMessages();
     
-    if (matchedContact != null) {
+    if (matchedContact != null && mounted) {
       Fluttertoast.showToast(
         msg: "New message from ${matchedContact.name}",
         toastLength: Toast.LENGTH_SHORT,
@@ -258,11 +279,13 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _loadContacts() async {
     final value = await db.getContacts();
-    setState(() {
-      contactList = value;
-      count = value.length;
-      debugPrint("Loaded ${value.length} contacts");
-    });
+    if (mounted) {
+      setState(() {
+        contactList = value;
+        count = value.length;
+        debugPrint("Loaded ${value.length} contacts");
+      });
+    }
   }
 
   Future<void> _loadMessages() async {
@@ -271,11 +294,13 @@ class _ChatPageState extends State<ChatPage> {
       String? messagesJson = prefs.getString('chat_messages');
       if (messagesJson != null) {
         List<dynamic> decodedMessages = jsonDecode(messagesJson);
-        setState(() {
-          messages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
-          _sortMessages();
-        });
-        debugPrint("Loaded ${messages.length} messages");
+        if (mounted) {
+          setState(() {
+            messages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
+            _sortMessages();
+          });
+          debugPrint("Loaded ${messages.length} messages");
+        }
       }
     } catch (e) {
       debugPrint("Error loading messages: $e");
@@ -302,27 +327,37 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _sendMessage() async {
     if (_messageController.text.isEmpty) {
-      Fluttertoast.showToast(msg: "Please enter a message");
+      if (mounted) {
+        Fluttertoast.showToast(msg: "Please enter a message");
+      }
       return;
     }
 
     if (selectedContact == null) {
-      Fluttertoast.showToast(msg: "Please select a contact");
+      if (mounted) {
+        Fluttertoast.showToast(msg: "Please select a contact");
+      }
       return;
     }
 
     final formattedNumber = _formatPhoneNumber(selectedContact!.number);
     if (formattedNumber.isEmpty) {
-      Fluttertoast.showToast(msg: "Invalid phone number format");
+      if (mounted) {
+        Fluttertoast.showToast(msg: "Invalid phone number format");
+      }
       return;
     }
 
     if (!await _checkPermissions()) {
-      Fluttertoast.showToast(msg: "SMS permissions not granted");
+      if (mounted) {
+        Fluttertoast.showToast(msg: "SMS permissions not granted");
+      }
       return;
     }
 
-    setState(() => _isSending = true);
+    if (mounted) {
+      setState(() => _isSending = true);
+    }
 
     final newMessage = ChatMessage(
       text: _messageController.text,
@@ -333,11 +368,13 @@ class _ChatPageState extends State<ChatPage> {
       timestamp: DateTime.now(),
     );
 
-    setState(() {
-      messages.add(newMessage);
-      _messageController.clear();
-      _sortMessages();
-    });
+    if (mounted) {
+      setState(() {
+        messages.add(newMessage);
+        _messageController.clear();
+        _sortMessages();
+      });
+    }
     
     await _saveMessages();
 
@@ -383,15 +420,21 @@ class _ChatPageState extends State<ChatPage> {
 
     if (!sendSuccess) {
       _markMessageAsFailed(newMessage);
-      Fluttertoast.showToast(msg: "Failed to send message");
-    } else {
+      if (mounted) {
+        Fluttertoast.showToast(msg: "Failed to send message");
+      }
+    } else if (mounted) {
       Fluttertoast.showToast(msg: "Message sent successfully");
     }
 
-    setState(() => _isSending = false);
+    if (mounted) {
+      setState(() => _isSending = false);
+    }
   }
 
   void _markMessageAsFailed(ChatMessage message) {
+    if (!mounted) return;
+    
     setState(() {
       final index = messages.indexWhere((m) => 
         m.timestamp.isAtSameMomentAs(message.timestamp) && 
@@ -436,226 +479,228 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       body: SafeArea(
-      child: Column(
-        children: [
-          Container(
-            height: 100,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: count,
-              itemBuilder: (context, index) {
-                final contact = contactList![index];
-                final isSelected = selectedContact?.id == contact.id;
-                
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedContact = contact;
-                      debugPrint("Selected contact: ${contact.name}");
-                    });
-                  },
-                  child: Container(
-                    width: 80,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue[50] : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(10),
-                      border: isSelected 
-                          ? Border.all(color: Colors.blue, width: 2)
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: isSelected 
-                              ? Colors.blue[100] 
-                              : Colors.grey[300],
-                          child: Text(
-                            contact.name.isNotEmpty 
-                                ? contact.name[0].toUpperCase()
-                                : "?",
-                            style: TextStyle(
-                              color: isSelected 
-                                  ? Colors.blue[800] 
-                                  : Colors.grey[800],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Flexible(
-                          child: Text(
-                            contact.name,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected 
-                                  ? Colors.blue[800] 
-                                  : Colors.grey[800],
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
+        child: Column(
+          children: [
+            Container(
+              height: 100,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
                   ),
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: selectedContact == null
-                ? const Center(
-                    child: Text(
-                      "Select a contact to view messages",
-                      style: TextStyle(color: Colors.grey),
+                ],
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: count,
+                itemBuilder: (context, index) {
+                  final contact = contactList![index];
+                  final isSelected = selectedContact?.id == contact.id;
+                  
+                  return GestureDetector(
+                    onTap: () {
+                      if (mounted) {
+                        setState(() {
+                          selectedContact = contact;
+                          debugPrint("Selected contact: ${contact.name}");
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: 80,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue[50] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(10),
+                        border: isSelected 
+                            ? Border.all(color: Colors.blue, width: 2)
+                            : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: isSelected 
+                                ? Colors.blue[100] 
+                                : Colors.grey[300],
+                            child: Text(
+                              contact.name.isNotEmpty 
+                                  ? contact.name[0].toUpperCase()
+                                  : "?",
+                              style: TextStyle(
+                                color: isSelected 
+                                    ? Colors.blue[800] 
+                                    : Colors.grey[800],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Flexible(
+                            child: Text(
+                              contact.name,
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected 
+                                    ? Colors.blue[800] 
+                                    : Colors.grey[800],
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                : contactMessages.isEmpty
-                    ? const Center(
-                        child: Text(
-                          "No messages with this contact",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        itemCount: contactMessages.length,
-                        itemBuilder: (context, index) {
-                          final message = contactMessages[index];
+                  );
+                },
+              ),
+            ),
+            Expanded(
+              child: selectedContact == null
+                  ? const Center(
+                      child: Text(
+                        "Select a contact to view messages",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : contactMessages.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "No messages with this contact",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          itemCount: contactMessages.length,
+                          itemBuilder: (context, index) {
+                            final message = contactMessages[index];
 
-                          return Align(
-                            alignment: message.isSent
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.7,
-                              ),
-                              margin: const EdgeInsets.symmetric(
-                                vertical: 5,
-                                horizontal: 10,
-                              ),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: message.isSent
-                                    ? message.isFailed
-                                        ? Colors.red[100]
-                                        : Colors.blue[100]
-                                    : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    message.text,
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        DateFormat('MM/dd hh:mm a')
-                                            .format(message.timestamp),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      if (message.isSent)
-                                        Padding(
-                                          padding: const EdgeInsets.only(left: 4),
-                                          child: Icon(
-                                            message.isFailed
-                                                ? Icons.error_outline
-                                                : Icons.check,
-                                            color: message.isFailed
-                                                ? Colors.red
-                                                : Colors.green,
-                                            size: 16,
+                            return Align(
+                              alignment: message.isSent
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                constraints: BoxConstraints(
+                                  maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                ),
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                  horizontal: 10,
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: message.isSent
+                                      ? message.isFailed
+                                          ? Colors.red[100]
+                                          : Colors.blue[100]
+                                      : Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      message.text,
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          DateFormat('MM/dd hh:mm a')
+                                              .format(message.timestamp),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                ],
+                                        if (message.isSent)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 4),
+                                            child: Icon(
+                                              message.isFailed
+                                                  ? Icons.error_outline
+                                                  : Icons.check,
+                                              color: message.isFailed
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                              size: 16,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
-                  blurRadius: 5,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+                            );
+                          },
+                        ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: "Type a message...",
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: InputDecoration(
+                        hintText: "Type a message...",
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[200],
                       ),
-                      filled: true,
-                      fillColor: Colors.grey[200],
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 40,
-                  width: 40,
-                  child: FloatingActionButton(
-                    onPressed: _isSending ? null : _sendMessage,
-                    backgroundColor: _isSending ? Colors.grey : Colors.blue,
-                    elevation: 0,
-                    child: _isSending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white),
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.send, size: 20),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 40,
+                    width: 40,
+                    child: FloatingActionButton(
+                      onPressed: _isSending ? null : _sendMessage,
+                      backgroundColor: _isSending ? Colors.grey : Colors.blue,
+                      elevation: 0,
+                      child: _isSending
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white),
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.send, size: 20),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
