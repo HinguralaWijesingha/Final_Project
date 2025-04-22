@@ -7,12 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:telephony/telephony.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
+import 'dart:ui';
 
 class ChatMessage {
   final String text;
   final bool isSent;
   final String contactId;
   final String contactName;
+  final String phoneNumber; // Add phone number field for better matching
   final DateTime timestamp;
   final bool isFailed;
 
@@ -22,6 +25,7 @@ class ChatMessage {
     required this.contactId,
     required this.contactName,
     required this.timestamp,
+    this.phoneNumber = '',
     this.isFailed = false,
   });
 
@@ -30,6 +34,7 @@ class ChatMessage {
         'isSent': isSent,
         'contactId': contactId,
         'contactName': contactName,
+        'phoneNumber': phoneNumber,
         'timestamp': timestamp.toIso8601String(),
         'isFailed': isFailed,
       };
@@ -39,10 +44,14 @@ class ChatMessage {
         isSent: json['isSent'],
         contactId: json['contactId'],
         contactName: json['contactName'],
+        phoneNumber: json['phoneNumber'] ?? '',
         timestamp: DateTime.parse(json['timestamp']),
         isFailed: json['isFailed'] ?? false,
       );
 }
+
+// Add an isolate port name for background communication
+const String _isolateName = 'sms_background_isolate';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -60,6 +69,7 @@ class _ChatPageState extends State<ChatPage> {
   Dcontacts? selectedContact;
   final Telephony telephony = Telephony.instance;
   bool _isSending = false;
+  Timer? _messageRefreshTimer;
 
   @override
   void initState() {
@@ -67,6 +77,31 @@ class _ChatPageState extends State<ChatPage> {
     _loadContacts();
     _loadMessages();
     _initSmsReceiver();
+    
+    // Set up a timer to periodically check for new messages
+    _messageRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadMessages();
+    });
+    
+    // Set up port for background communication
+    _setupBackgroundChannel();
+  }
+  
+  @override
+  void dispose() {
+    _messageRefreshTimer?.cancel();
+    super.dispose();
+  }
+  
+  Future<void> _setupBackgroundChannel() async {
+    // Register a port for background communication
+    final port = ReceivePort();
+    IsolateNameServer.registerPortWithName(port.sendPort, _isolateName);
+    
+    port.listen((dynamic message) {
+      debugPrint("Received message from background isolate: $message");
+      _loadMessages(); // Reload messages when background notifies us
+    });
   }
 
   Future<void> _initSmsReceiver() async {
@@ -78,6 +113,7 @@ class _ChatPageState extends State<ChatPage> {
       telephony.listenIncomingSms(
         onNewMessage: _handleIncomingSms,
         onBackgroundMessage: backgroundMessageHandler,
+        listenInBackground: true,
       );
       debugPrint("SMS listener initialized successfully");
     } else {
@@ -89,7 +125,7 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  void _handleIncomingSms(SmsMessage message) {
+  void _handleIncomingSms(SmsMessage message) async {
     debugPrint("Received SMS in foreground: ${message.body}");
     if (message.address == null || message.body == null) return;
     
@@ -97,31 +133,22 @@ class _ChatPageState extends State<ChatPage> {
     DateTime now = DateTime.now();
     
     // Find matching contact
-    Dcontacts? matchedContact;
-    for (var contact in contactList ?? []) {
-      // Normalize phone numbers for comparison
-      String normalizedContactNumber = _normalizePhoneNumber(contact.number);
-      String normalizedSenderNumber = _normalizePhoneNumber(address);
-      
-      debugPrint("Comparing: $normalizedContactNumber with $normalizedSenderNumber");
-      
-      if (normalizedContactNumber == normalizedSenderNumber) {
-        matchedContact = contact;
-        debugPrint("Found matching contact: ${contact.name}");
-        break;
-      }
-    }
+    Dcontacts? matchedContact = await _findMatchingContact(address);
+    
+    final newMessage = ChatMessage(
+      text: message.body!,
+      isSent: false,
+      contactId: matchedContact?.id.toString() ?? '',
+      contactName: matchedContact?.name ?? address,
+      phoneNumber: address,
+      timestamp: now,
+    );
     
     setState(() {
-      messages.add(ChatMessage(
-        text: message.body!,
-        isSent: false,
-        contactId: matchedContact?.id.toString() ?? '',
-        contactName: matchedContact?.name ?? address,
-        timestamp: now,
-      ));
+      messages.add(newMessage);
     });
-    _saveMessages();
+    
+    await _saveMessages();
     
     // Show notification for new message
     if (matchedContact != null) {
@@ -147,12 +174,31 @@ class _ChatPageState extends State<ChatPage> {
         storedMessages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
       }
       
+      // Load contacts for matching
+      final DB db = DB();
+      final contacts = await db.getContacts();
+      
+      // Find matching contact
+      String address = message.address ?? "Unknown";
+      Dcontacts? matchedContact;
+      
+      for (var contact in contacts) {
+        String normalizedContactNumber = _normalizePhoneNumberStatic(contact.number);
+        String normalizedSenderNumber = _normalizePhoneNumberStatic(address);
+        
+        if (normalizedContactNumber == normalizedSenderNumber) {
+          matchedContact = contact;
+          break;
+        }
+      }
+      
       // Add new message
       storedMessages.add(ChatMessage(
         text: message.body ?? "",
         isSent: false,
-        contactId: '',
-        contactName: message.address ?? "Unknown",
+        contactId: matchedContact?.id.toString() ?? '',
+        contactName: matchedContact?.name ?? address,
+        phoneNumber: address,
         timestamp: DateTime.now(),
       ));
       
@@ -162,17 +208,46 @@ class _ChatPageState extends State<ChatPage> {
       await prefs.setString('chat_messages', jsonEncode(encodedMessages));
       
       debugPrint("Successfully saved background message");
+      
+      // Notify foreground if possible
+      final SendPort? sendPort = IsolateNameServer.lookupPortByName(_isolateName);
+      if (sendPort != null) {
+        sendPort.send('new_message');
+      }
     } catch (e) {
       debugPrint("Error saving background message: $e");
     }
   }
-
-  String _normalizePhoneNumber(String number) {
+  
+  // Static version for use in background handler
+  static String _normalizePhoneNumberStatic(String number) {
     // Remove all non-digit characters
     String digits = number.replaceAll(RegExp(r'[^0-9]'), '');
     
     // Take just the last 10 digits (or fewer if the number is shorter)
     return digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+  }
+
+  String _normalizePhoneNumber(String number) {
+    return _normalizePhoneNumberStatic(number);
+  }
+  
+  Future<Dcontacts?> _findMatchingContact(String phoneNumber) async {
+    if (contactList == null || contactList!.isEmpty) {
+      await _loadContacts();
+    }
+    
+    String normalizedSenderNumber = _normalizePhoneNumber(phoneNumber);
+    
+    for (var contact in contactList ?? []) {
+      String normalizedContactNumber = _normalizePhoneNumber(contact.number);
+      
+      if (normalizedContactNumber == normalizedSenderNumber) {
+        return contact;
+      }
+    }
+    
+    return null;
   }
 
   Future<bool> _checkPermissions() async {
@@ -198,13 +273,12 @@ class _ChatPageState extends State<ChatPage> {
     return formatted;
   }
 
-  void _loadContacts() {
-    db.getContacts().then((value) {
-      setState(() {
-        contactList = value;
-        count = value.length;
-        debugPrint("Loaded ${value.length} contacts");
-      });
+  Future<void> _loadContacts() async {
+    final value = await db.getContacts();
+    setState(() {
+      contactList = value;
+      count = value.length;
+      debugPrint("Loaded ${value.length} contacts");
     });
   }
 
@@ -216,6 +290,8 @@ class _ChatPageState extends State<ChatPage> {
         List<dynamic> decodedMessages = jsonDecode(messagesJson);
         setState(() {
           messages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
+          // Sort messages by timestamp
+          messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         });
         debugPrint("Loaded ${messages.length} messages");
       }
@@ -226,6 +302,9 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _saveMessages() async {
     try {
+      // Sort messages by timestamp before saving
+      messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      
       SharedPreferences prefs = await SharedPreferences.getInstance();
       List<Map<String, dynamic>> encodedMessages =
           messages.map((m) => m.toJson()).toList();
@@ -267,6 +346,7 @@ class _ChatPageState extends State<ChatPage> {
       isSent: true,
       contactId: selectedContact!.id.toString(),
       contactName: selectedContact!.name,
+      phoneNumber: selectedContact!.number,
       timestamp: DateTime.now(),
     );
 
@@ -274,56 +354,56 @@ class _ChatPageState extends State<ChatPage> {
       messages.add(newMessage);
       _messageController.clear();
     });
+    
+    await _saveMessages();
 
     bool sendSuccess = false;
     
     try {
       debugPrint("Sending SMS to: $formattedNumber");
-      // First try sending directly
-      await telephony.sendSms(
+      // Try sending with background message status
+      final completer = Completer<bool>();
+      
+      telephony.sendSms(
         to: formattedNumber,
         message: newMessage.text,
+        statusListener: (status) {
+          debugPrint("SMS status: $status");
+          if (status == SendStatus.SENT || status == SendStatus.DELIVERED) {
+            if (!completer.isCompleted) completer.complete(true);
+          } else if (status != SendStatus.SENT && status != SendStatus.DELIVERED) {
+            // Any non-success status is treated as a failure
+            if (!completer.isCompleted) completer.complete(false);
+          }
+        },
       );
-      sendSuccess = true;
-      debugPrint("Direct send successful");
-    } catch (e) {
-      debugPrint("Direct send failed: $e");
       
-      // Fallback to status listener method
       try {
-        final completer = Completer<bool>();
-        
-        telephony.sendSms(
+        sendSuccess = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint("SMS send timed out, but might still be delivered");
+            return true; // Optimistically assume it might go through
+          },
+        );
+      } catch (timeoutError) {
+        debugPrint("Completer error: $timeoutError");
+        // Fallback to direct send without status
+        await telephony.sendSms(
           to: formattedNumber,
           message: newMessage.text,
-          statusListener: (status) {
-            debugPrint("SMS status: $status");
-            if (status == SendStatus.SENT || status == SendStatus.DELIVERED) {
-              completer.complete(true);
-            } else {
-              completer.complete(false);
-            }
-          },
         );
-        
-        sendSuccess = await completer.future.timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            debugPrint("SMS send timed out");
-            return false;
-          },
-        );
-      } catch (e) {
-        debugPrint("Fallback send failed: $e");
-        sendSuccess = false;
+        sendSuccess = true;
       }
+    } catch (e) {
+      debugPrint("SMS send failed: $e");
+      sendSuccess = false;
     }
 
     if (!sendSuccess) {
       _markMessageAsFailed(newMessage);
       Fluttertoast.showToast(msg: "Failed to send message");
     } else {
-      await _saveMessages();
       Fluttertoast.showToast(msg: "Message sent successfully");
     }
 
@@ -332,19 +412,39 @@ class _ChatPageState extends State<ChatPage> {
 
   void _markMessageAsFailed(ChatMessage message) {
     setState(() {
-      final index = messages.indexOf(message);
+      final index = messages.indexWhere((m) => 
+        m.timestamp.isAtSameMomentAs(message.timestamp) && 
+        m.text == message.text && 
+        m.contactId == message.contactId);
+        
       if (index != -1) {
         messages[index] = ChatMessage(
           text: message.text,
           isSent: true,
           contactId: message.contactId,
           contactName: message.contactName,
+          phoneNumber: message.phoneNumber,
           timestamp: message.timestamp,
           isFailed: true,
         );
       }
     });
     _saveMessages();
+  }
+
+  bool _shouldShowMessage(ChatMessage message) {
+    if (selectedContact == null) return false;
+    
+    // Check if message matches selected contact by ID
+    if (message.contactId == selectedContact!.id.toString()) {
+      return true;
+    }
+    
+    // Or check if phone numbers match
+    String normalizedMessageNumber = _normalizePhoneNumber(message.phoneNumber);
+    String normalizedContactNumber = _normalizePhoneNumber(selectedContact!.number);
+    
+    return normalizedMessageNumber == normalizedContactNumber;
   }
 
   @override
@@ -355,8 +455,19 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Chat"),
+        title: selectedContact != null 
+            ? Text("Chat with ${selectedContact!.name}")
+            : const Text("Chat"),
         backgroundColor: Colors.blue,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _loadMessages();
+              Fluttertoast.showToast(msg: "Messages refreshed");
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -388,7 +499,10 @@ class _ChatPageState extends State<ChatPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircleAvatar(
-                          child: Text(contactList![index].name[0]),
+                          child: Text(
+                            contactList![index].name.isNotEmpty 
+                                ? contactList![index].name[0]
+                                : "?"),
                         ),
                         const SizedBox(height: 5),
                         Flexible(
@@ -420,13 +534,8 @@ class _ChatPageState extends State<ChatPage> {
                     itemBuilder: (context, index) {
                       final message = messages[index];
                       
-                      // Show messages for selected contact or unassigned messages with matching phone
-                      final bool isSelected = selectedContact != null && 
-                        (message.contactId == selectedContact!.id.toString() || 
-                         (_normalizePhoneNumber(message.contactName) == 
-                          _normalizePhoneNumber(selectedContact!.number)));
-
-                      if (!isSelected) {
+                      // Only show messages for the selected contact
+                      if (!_shouldShowMessage(message)) {
                         return const SizedBox.shrink();
                       }
 
@@ -463,19 +572,23 @@ class _ChatPageState extends State<ChatPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    DateFormat('hh:mm a')
+                                    DateFormat('MM/dd hh:mm a')
                                         .format(message.timestamp),
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey.shade600,
                                     ),
                                   ),
-                                  if (message.isSent && message.isFailed)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 4),
+                                  if (message.isSent)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4),
                                       child: Icon(
-                                        Icons.error_outline,
-                                        color: Colors.red,
+                                        message.isFailed
+                                            ? Icons.error_outline
+                                            : Icons.check,
+                                        color: message.isFailed
+                                            ? Colors.red
+                                            : Colors.green,
                                         size: 16,
                                       ),
                                     ),
