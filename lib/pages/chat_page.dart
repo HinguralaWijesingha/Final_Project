@@ -15,7 +15,7 @@ class ChatMessage {
   final bool isSent;
   final String contactId;
   final String contactName;
-  final String phoneNumber; // Add phone number field for better matching
+  final String phoneNumber;
   final DateTime timestamp;
   final bool isFailed;
 
@@ -50,7 +50,6 @@ class ChatMessage {
       );
 }
 
-// Add an isolate port name for background communication
 const String _isolateName = 'sms_background_isolate';
 
 class ChatPage extends StatefulWidget {
@@ -78,12 +77,11 @@ class _ChatPageState extends State<ChatPage> {
     _loadMessages();
     _initSmsReceiver();
     
-    // Set up a timer to periodically check for new messages
     _messageRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadMessages();
     });
     
-    // Set up port for background communication
+    
     _setupBackgroundChannel();
   }
   
@@ -94,13 +92,12 @@ class _ChatPageState extends State<ChatPage> {
   }
   
   Future<void> _setupBackgroundChannel() async {
-    // Register a port for background communication
     final port = ReceivePort();
     IsolateNameServer.registerPortWithName(port.sendPort, _isolateName);
     
     port.listen((dynamic message) {
       debugPrint("Received message from background isolate: $message");
-      _loadMessages(); // Reload messages when background notifies us
+      _loadMessages();
     });
   }
 
@@ -132,7 +129,6 @@ class _ChatPageState extends State<ChatPage> {
     String address = message.address!;
     DateTime now = DateTime.now();
     
-    // Find matching contact
     Dcontacts? matchedContact = await _findMatchingContact(address);
     
     final newMessage = ChatMessage(
@@ -146,11 +142,11 @@ class _ChatPageState extends State<ChatPage> {
     
     setState(() {
       messages.add(newMessage);
+      _sortMessages();
     });
     
     await _saveMessages();
     
-    // Show notification for new message
     if (matchedContact != null) {
       Fluttertoast.showToast(
         msg: "New message from ${matchedContact.name}",
@@ -164,7 +160,6 @@ class _ChatPageState extends State<ChatPage> {
     debugPrint("Received SMS in background: ${message.body}");
     
     try {
-      // Load existing messages
       SharedPreferences prefs = await SharedPreferences.getInstance();
       List<ChatMessage> storedMessages = [];
       String? messagesJson = prefs.getString('chat_messages');
@@ -174,11 +169,9 @@ class _ChatPageState extends State<ChatPage> {
         storedMessages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
       }
       
-      // Load contacts for matching
       final DB db = DB();
       final contacts = await db.getContacts();
       
-      // Find matching contact
       String address = message.address ?? "Unknown";
       Dcontacts? matchedContact;
       
@@ -192,7 +185,6 @@ class _ChatPageState extends State<ChatPage> {
         }
       }
       
-      // Add new message
       storedMessages.add(ChatMessage(
         text: message.body ?? "",
         isSent: false,
@@ -202,14 +194,12 @@ class _ChatPageState extends State<ChatPage> {
         timestamp: DateTime.now(),
       ));
       
-      // Save updated messages
       List<Map<String, dynamic>> encodedMessages =
           storedMessages.map((m) => m.toJson()).toList();
       await prefs.setString('chat_messages', jsonEncode(encodedMessages));
       
       debugPrint("Successfully saved background message");
       
-      // Notify foreground if possible
       final SendPort? sendPort = IsolateNameServer.lookupPortByName(_isolateName);
       if (sendPort != null) {
         sendPort.send('new_message');
@@ -219,12 +209,8 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
   
-  // Static version for use in background handler
   static String _normalizePhoneNumberStatic(String number) {
-    // Remove all non-digit characters
     String digits = number.replaceAll(RegExp(r'[^0-9]'), '');
-    
-    // Take just the last 10 digits (or fewer if the number is shorter)
     return digits.length > 10 ? digits.substring(digits.length - 10) : digits;
   }
 
@@ -262,13 +248,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   String _formatPhoneNumber(String number) {
-    // Remove all non-digit characters except '+'
     String formatted = number.replaceAll(RegExp(r'[^0-9+]'), '');
     
-    // Ensure it starts with country code
     if (!formatted.startsWith('+')) {
-      // Add default country code if missing (adjust for your country)
-      formatted = '+1$formatted'; // US/Canada default
+      formatted = '+1$formatted';
     }
     return formatted;
   }
@@ -290,8 +273,7 @@ class _ChatPageState extends State<ChatPage> {
         List<dynamic> decodedMessages = jsonDecode(messagesJson);
         setState(() {
           messages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
-          // Sort messages by timestamp
-          messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          _sortMessages();
         });
         debugPrint("Loaded ${messages.length} messages");
       }
@@ -300,10 +282,13 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  void _sortMessages() {
+    messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  }
+
   Future<void> _saveMessages() async {
     try {
-      // Sort messages by timestamp before saving
-      messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      _sortMessages();
       
       SharedPreferences prefs = await SharedPreferences.getInstance();
       List<Map<String, dynamic>> encodedMessages =
@@ -326,14 +311,12 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
-    // Format phone number
     final formattedNumber = _formatPhoneNumber(selectedContact!.number);
     if (formattedNumber.isEmpty) {
       Fluttertoast.showToast(msg: "Invalid phone number format");
       return;
     }
 
-    // Check permissions
     if (!await _checkPermissions()) {
       Fluttertoast.showToast(msg: "SMS permissions not granted");
       return;
@@ -353,6 +336,7 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       messages.add(newMessage);
       _messageController.clear();
+      _sortMessages();
     });
     
     await _saveMessages();
@@ -361,7 +345,6 @@ class _ChatPageState extends State<ChatPage> {
     
     try {
       debugPrint("Sending SMS to: $formattedNumber");
-      // Try sending with background message status
       final completer = Completer<bool>();
       
       telephony.sendSms(
@@ -372,7 +355,6 @@ class _ChatPageState extends State<ChatPage> {
           if (status == SendStatus.SENT || status == SendStatus.DELIVERED) {
             if (!completer.isCompleted) completer.complete(true);
           } else if (status != SendStatus.SENT && status != SendStatus.DELIVERED) {
-            // Any non-success status is treated as a failure
             if (!completer.isCompleted) completer.complete(false);
           }
         },
@@ -383,12 +365,11 @@ class _ChatPageState extends State<ChatPage> {
           const Duration(seconds: 15),
           onTimeout: () {
             debugPrint("SMS send timed out, but might still be delivered");
-            return true; // Optimistically assume it might go through
+            return true;
           },
         );
       } catch (timeoutError) {
         debugPrint("Completer error: $timeoutError");
-        // Fallback to direct send without status
         await telephony.sendSms(
           to: formattedNumber,
           message: newMessage.text,
@@ -432,19 +413,17 @@ class _ChatPageState extends State<ChatPage> {
     _saveMessages();
   }
 
-  bool _shouldShowMessage(ChatMessage message) {
-    if (selectedContact == null) return false;
+  List<ChatMessage> _getMessagesForSelectedContact() {
+    if (selectedContact == null) return [];
     
-    // Check if message matches selected contact by ID
-    if (message.contactId == selectedContact!.id.toString()) {
-      return true;
-    }
-    
-    // Or check if phone numbers match
-    String normalizedMessageNumber = _normalizePhoneNumber(message.phoneNumber);
-    String normalizedContactNumber = _normalizePhoneNumber(selectedContact!.number);
-    
-    return normalizedMessageNumber == normalizedContactNumber;
+    return messages.where((message) {
+      if (message.contactId == selectedContact!.id.toString()) return true;
+      
+      String normalizedMessageNumber = _normalizePhoneNumber(message.phoneNumber);
+      String normalizedContactNumber = _normalizePhoneNumber(selectedContact!.number);
+      
+      return normalizedMessageNumber == normalizedContactNumber;
+    }).toList();
   }
 
   @override
@@ -453,21 +432,37 @@ class _ChatPageState extends State<ChatPage> {
       contactList = [];
     }
 
+    final contactMessages = _getMessagesForSelectedContact();
+
     return Scaffold(
-      body: Column(
+      body: SafeArea(
+      child: Column(
         children: [
           Container(
             height: 100,
             padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.3),
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: count,
               itemBuilder: (context, index) {
+                final contact = contactList![index];
+                final isSelected = selectedContact?.id == contact.id;
+                
                 return GestureDetector(
                   onTap: () {
                     setState(() {
-                      selectedContact = contactList![index];
-                      debugPrint("Selected contact: ${selectedContact!.name}");
+                      selectedContact = contact;
+                      debugPrint("Selected contact: ${contact.name}");
                     });
                   },
                   child: Container(
@@ -475,29 +470,41 @@ class _ChatPageState extends State<ChatPage> {
                     margin: const EdgeInsets.symmetric(horizontal: 8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: selectedContact?.id == contactList![index].id
-                          ? Colors.blue.shade100
-                          : Colors.grey.shade200,
+                      color: isSelected ? Colors.blue[50] : Colors.grey[200],
                       borderRadius: BorderRadius.circular(10),
+                      border: isSelected 
+                          ? Border.all(color: Colors.blue, width: 2)
+                          : null,
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircleAvatar(
+                          backgroundColor: isSelected 
+                              ? Colors.blue[100] 
+                              : Colors.grey[300],
                           child: Text(
-                            contactList![index].name.isNotEmpty 
-                                ? contactList![index].name[0]
-                                : "?"),
+                            contact.name.isNotEmpty 
+                                ? contact.name[0].toUpperCase()
+                                : "?",
+                            style: TextStyle(
+                              color: isSelected 
+                                  ? Colors.blue[800] 
+                                  : Colors.grey[800],
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 5),
                         Flexible(
                           child: Text(
-                            contactList![index].name,
+                            contact.name,
                             style: TextStyle(
-                              fontWeight: selectedContact?.id ==
-                                      contactList![index].id
+                              fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
+                              color: isSelected 
+                                  ? Colors.blue[800] 
+                                  : Colors.grey[800],
                             ),
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
@@ -510,81 +517,88 @@ class _ChatPageState extends State<ChatPage> {
               },
             ),
           ),
-          const Divider(height: 1),
           Expanded(
-            child: messages.isEmpty || selectedContact == null
-                ? const Center(child: Text("No messages yet"))
-                : ListView.builder(
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      
-                      // Only show messages for the selected contact
-                      if (!_shouldShowMessage(message)) {
-                        return const SizedBox.shrink();
-                      }
+            child: selectedContact == null
+                ? const Center(
+                    child: Text(
+                      "Select a contact to view messages",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : contactMessages.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "No messages with this contact",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        itemCount: contactMessages.length,
+                        itemBuilder: (context, index) {
+                          final message = contactMessages[index];
 
-                      return Align(
-                        alignment: message.isSent
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
-                          ),
-                          margin: const EdgeInsets.symmetric(
-                            vertical: 5,
-                            horizontal: 10,
-                          ),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: message.isSent
-                                ? message.isFailed
-                                    ? Colors.red.shade100
-                                    : Colors.blue.shade100
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                message.text,
-                                style: const TextStyle(fontSize: 16),
+                          return Align(
+                            alignment: message.isSent
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.7,
                               ),
-                              const SizedBox(height: 5),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+                              margin: const EdgeInsets.symmetric(
+                                vertical: 5,
+                                horizontal: 10,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: message.isSent
+                                    ? message.isFailed
+                                        ? Colors.red[100]
+                                        : Colors.blue[100]
+                                    : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    DateFormat('MM/dd hh:mm a')
-                                        .format(message.timestamp),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
+                                    message.text,
+                                    style: const TextStyle(fontSize: 16),
                                   ),
-                                  if (message.isSent)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: Icon(
-                                        message.isFailed
-                                            ? Icons.error_outline
-                                            : Icons.check,
-                                        color: message.isFailed
-                                            ? Colors.red
-                                            : Colors.green,
-                                        size: 16,
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        DateFormat('MM/dd hh:mm a')
+                                            .format(message.timestamp),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
                                       ),
-                                    ),
+                                      if (message.isSent)
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 4),
+                                          child: Icon(
+                                            message.isFailed
+                                                ? Icons.error_outline
+                                                : Icons.check,
+                                            color: message.isFailed
+                                                ? Colors.red
+                                                : Colors.green,
+                                            size: 16,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                            ),
+                          );
+                        },
+                      ),
           ),
           Container(
             padding: const EdgeInsets.all(8),
@@ -603,16 +617,16 @@ class _ChatPageState extends State<ChatPage> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: "Type a message...",
-                      contentPadding: EdgeInsets.symmetric(
+                      contentPadding: const EdgeInsets.symmetric(
                           horizontal: 15, vertical: 10),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(25)),
-                        borderSide: BorderSide(width: 0, style: BorderStyle.none),
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Color(0xFFEEEEEE),
+                      fillColor: Colors.grey[200],
                     ),
                   ),
                 ),
@@ -623,6 +637,7 @@ class _ChatPageState extends State<ChatPage> {
                   child: FloatingActionButton(
                     onPressed: _isSending ? null : _sendMessage,
                     backgroundColor: _isSending ? Colors.grey : Colors.blue,
+                    elevation: 0,
                     child: _isSending
                         ? const SizedBox(
                             width: 20,
@@ -633,13 +648,14 @@ class _ChatPageState extends State<ChatPage> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Icon(Icons.send),
+                        : const Icon(Icons.send, size: 20),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
       ),
     );
   }
