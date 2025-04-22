@@ -454,21 +454,6 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: selectedContact != null 
-            ? Text("Chat with ${selectedContact!.name}")
-            : const Text("Chat"),
-        backgroundColor: Colors.blue,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _loadMessages();
-              Fluttertoast.showToast(msg: "Messages refreshed");
-            },
-          ),
-        ],
-      ),
       body: Column(
         children: [
           Container(
