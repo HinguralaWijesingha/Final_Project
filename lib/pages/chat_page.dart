@@ -18,6 +18,7 @@ class ChatMessage {
   final String phoneNumber;
   final DateTime timestamp;
   final bool isFailed;
+  final String? smsId;
 
   ChatMessage({
     required this.text,
@@ -27,6 +28,7 @@ class ChatMessage {
     required this.timestamp,
     this.phoneNumber = '',
     this.isFailed = false,
+    this.smsId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -37,6 +39,7 @@ class ChatMessage {
         'phoneNumber': phoneNumber,
         'timestamp': timestamp.toIso8601String(),
         'isFailed': isFailed,
+        'smsId': smsId,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -47,6 +50,7 @@ class ChatMessage {
         phoneNumber: json['phoneNumber'] ?? '',
         timestamp: DateTime.parse(json['timestamp']),
         isFailed: json['isFailed'] ?? false,
+        smsId: json['smsId'],
       );
 }
 
@@ -60,8 +64,8 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  DB db = DB();
-  List<Dcontacts>? contactList;
+  final DB db = DB();
+  List<Dcontacts>? contactList = [];
   int count = 0;
   final TextEditingController _messageController = TextEditingController();
   List<ChatMessage> messages = [];
@@ -100,11 +104,8 @@ class _ChatPageState extends State<ChatPage> {
   void _cleanupResources() {
     _messageRefreshTimer?.cancel();
     _messageController.dispose();
-    
-    if (_receivePort != null) {
-      _receivePort!.close();
-      IsolateNameServer.removePortNameMapping(_isolateName);
-    }
+    _receivePort?.close();
+    IsolateNameServer.removePortNameMapping(_isolateName);
   }
 
   Future<void> _setupBackgroundChannel() async {
@@ -181,24 +182,23 @@ class _ChatPageState extends State<ChatPage> {
     debugPrint("Received SMS in background: ${message.body}");
     
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      List<ChatMessage> storedMessages = [];
-      String? messagesJson = prefs.getString('chat_messages');
-      
-      if (messagesJson != null) {
-        List<dynamic> decodedMessages = jsonDecode(messagesJson);
-        storedMessages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
-      }
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? messagesJson = prefs.getString('chat_messages');
+      final List<ChatMessage> storedMessages = messagesJson != null
+          ? (jsonDecode(messagesJson) as List<dynamic>)
+              .map((m) => ChatMessage.fromJson(m))
+              .toList()
+          : [];
       
       final DB db = DB();
-      final contacts = await db.getContacts();
+      final List<Dcontacts> contacts = await db.getContacts();
       
-      String address = message.address ?? "Unknown";
+      final String address = message.address ?? "Unknown";
       Dcontacts? matchedContact;
       
-      for (var contact in contacts) {
-        String normalizedContactNumber = _normalizePhoneNumberStatic(contact.number);
-        String normalizedSenderNumber = _normalizePhoneNumberStatic(address);
+      for (final contact in contacts) {
+        final String normalizedContactNumber = _normalizePhoneNumberStatic(contact.number);
+        final String normalizedSenderNumber = _normalizePhoneNumberStatic(address);
         
         if (normalizedContactNumber == normalizedSenderNumber) {
           matchedContact = contact;
@@ -215,23 +215,20 @@ class _ChatPageState extends State<ChatPage> {
         timestamp: DateTime.now(),
       ));
       
-      List<Map<String, dynamic>> encodedMessages =
-          storedMessages.map((m) => m.toJson()).toList();
+      final List<Map<String, dynamic>> encodedMessages = storedMessages.map((m) => m.toJson()).toList();
       await prefs.setString('chat_messages', jsonEncode(encodedMessages));
       
       debugPrint("Successfully saved background message");
       
       final SendPort? sendPort = IsolateNameServer.lookupPortByName(_isolateName);
-      if (sendPort != null) {
-        sendPort.send('new_message');
-      }
+      sendPort?.send('new_message');
     } catch (e) {
       debugPrint("Error saving background message: $e");
     }
   }
   
   static String _normalizePhoneNumberStatic(String number) {
-    String digits = number.replaceAll(RegExp(r'[^0-9]'), '');
+    final String digits = number.replaceAll(RegExp(r'[^0-9]'), '');
     return digits.length > 10 ? digits.substring(digits.length - 10) : digits;
   }
 
@@ -244,11 +241,10 @@ class _ChatPageState extends State<ChatPage> {
       await _loadContacts();
     }
     
-    String normalizedSenderNumber = _normalizePhoneNumber(phoneNumber);
+    final String normalizedSenderNumber = _normalizePhoneNumber(phoneNumber);
     
-    for (var contact in contactList ?? []) {
-      String normalizedContactNumber = _normalizePhoneNumber(contact.number);
-      
+    for (final contact in contactList ?? []) {
+      final String normalizedContactNumber = _normalizePhoneNumber(contact.number);
       if (normalizedContactNumber == normalizedSenderNumber) {
         return contact;
       }
@@ -259,8 +255,8 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<bool> _checkPermissions() async {
     try {
-      final smsGranted = await telephony.requestSmsPermissions;
-      final phoneGranted = await telephony.requestPhonePermissions;
+      final bool? smsGranted = await telephony.requestSmsPermissions;
+      final bool? phoneGranted = await telephony.requestPhonePermissions;
       return (smsGranted ?? false) && (phoneGranted ?? false);
     } catch (e) {
       debugPrint("Permission error: $e");
@@ -270,7 +266,6 @@ class _ChatPageState extends State<ChatPage> {
 
   String _formatPhoneNumber(String number) {
     String formatted = number.replaceAll(RegExp(r'[^0-9+]'), '');
-    
     if (!formatted.startsWith('+')) {
       formatted = '+1$formatted';
     }
@@ -278,7 +273,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _loadContacts() async {
-    final value = await db.getContacts();
+    final List<Dcontacts> value = await db.getContacts();
     if (mounted) {
       setState(() {
         contactList = value;
@@ -290,10 +285,10 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _loadMessages() async {
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? messagesJson = prefs.getString('chat_messages');
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? messagesJson = prefs.getString('chat_messages');
       if (messagesJson != null) {
-        List<dynamic> decodedMessages = jsonDecode(messagesJson);
+        final List<dynamic> decodedMessages = jsonDecode(messagesJson);
         if (mounted) {
           setState(() {
             messages = decodedMessages.map((m) => ChatMessage.fromJson(m)).toList();
@@ -314,10 +309,8 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _saveMessages() async {
     try {
       _sortMessages();
-      
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      List<Map<String, dynamic>> encodedMessages =
-          messages.map((m) => m.toJson()).toList();
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> encodedMessages = messages.map((m) => m.toJson()).toList();
       await prefs.setString('chat_messages', jsonEncode(encodedMessages));
       debugPrint("Messages saved successfully");
     } catch (e) {
@@ -327,39 +320,29 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _sendMessage() async {
     if (_messageController.text.isEmpty) {
-      if (mounted) {
-        Fluttertoast.showToast(msg: "Please enter a message");
-      }
+      Fluttertoast.showToast(msg: "Please enter a message");
       return;
     }
 
     if (selectedContact == null) {
-      if (mounted) {
-        Fluttertoast.showToast(msg: "Please select a contact");
-      }
+      Fluttertoast.showToast(msg: "Please select a contact");
       return;
     }
 
-    final formattedNumber = _formatPhoneNumber(selectedContact!.number);
+    final String formattedNumber = _formatPhoneNumber(selectedContact!.number);
     if (formattedNumber.isEmpty) {
-      if (mounted) {
-        Fluttertoast.showToast(msg: "Invalid phone number format");
-      }
+      Fluttertoast.showToast(msg: "Invalid phone number format");
       return;
     }
 
     if (!await _checkPermissions()) {
-      if (mounted) {
-        Fluttertoast.showToast(msg: "SMS permissions not granted");
-      }
+      Fluttertoast.showToast(msg: "SMS permissions not granted");
       return;
     }
 
-    if (mounted) {
-      setState(() => _isSending = true);
-    }
+    setState(() => _isSending = true);
 
-    final newMessage = ChatMessage(
+    final ChatMessage newMessage = ChatMessage(
       text: _messageController.text,
       isSent: true,
       contactId: selectedContact!.id.toString(),
@@ -368,75 +351,78 @@ class _ChatPageState extends State<ChatPage> {
       timestamp: DateTime.now(),
     );
 
-    if (mounted) {
-      setState(() {
-        messages.add(newMessage);
-        _messageController.clear();
-        _sortMessages();
-      });
-    }
+    setState(() {
+      messages.add(newMessage);
+      _messageController.clear();
+      _sortMessages();
+    });
     
     await _saveMessages();
 
     bool sendSuccess = false;
+    String? smsId;
     
     try {
       debugPrint("Sending SMS to: $formattedNumber");
-      final completer = Completer<bool>();
       
-      telephony.sendSms(
+      final Completer<bool> completer = Completer<bool>();
+      
+      await telephony.sendSms(
         to: formattedNumber,
         message: newMessage.text,
-        statusListener: (status) {
+        statusListener: (SendStatus status) {
           debugPrint("SMS status: $status");
           if (status == SendStatus.SENT || status == SendStatus.DELIVERED) {
             if (!completer.isCompleted) completer.complete(true);
-          } else if (status != SendStatus.SENT && status != SendStatus.DELIVERED) {
-            if (!completer.isCompleted) completer.complete(false);
+          //} else if (status == SendStatus.) {  
+            //if (!completer.isCompleted) completer.complete(false);
           }
         },
       );
-      
-      try {
-        sendSuccess = await completer.future.timeout(
-          const Duration(seconds: 15),
-          onTimeout: () {
-            debugPrint("SMS send timed out, but might still be delivered");
-            return true;
-          },
-        );
-      } catch (timeoutError) {
-        debugPrint("Completer error: $timeoutError");
-        await telephony.sendSms(
-          to: formattedNumber,
-          message: newMessage.text,
-        );
-        sendSuccess = true;
-      }
+
+      sendSuccess = await completer.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint("SMS send timed out, but might still be delivered");
+          return true;
+        },
+      );
     } catch (e) {
       debugPrint("SMS send failed: $e");
       sendSuccess = false;
     }
 
-    if (!sendSuccess) {
-      _markMessageAsFailed(newMessage);
-      if (mounted) {
-        Fluttertoast.showToast(msg: "Failed to send message");
+    setState(() {
+      final int index = messages.indexWhere((m) => 
+        m.timestamp.isAtSameMomentAs(newMessage.timestamp));
+      if (index != -1) {
+        messages[index] = ChatMessage(
+          text: newMessage.text,
+          isSent: true,
+          contactId: newMessage.contactId,
+          contactName: newMessage.contactName,
+          phoneNumber: newMessage.phoneNumber,
+          timestamp: newMessage.timestamp,
+          isFailed: !sendSuccess,
+          smsId: smsId,
+        );
       }
-    } else if (mounted) {
-      Fluttertoast.showToast(msg: "Message sent successfully");
-    }
+    });
+    
+    await _saveMessages();
 
-    if (mounted) {
-      setState(() => _isSending = false);
-    }
+    Fluttertoast.showToast(
+      msg: sendSuccess ? "Message sent successfully" : "Failed to send message",
+    );
+
+    setState(() => _isSending = false);
   }
 
   void _markMessageAsFailed(ChatMessage message) {
     if (!mounted) return;
     
     setState(() {
-      final index = messages.indexWhere((m) => 
+      final int index = messages.indexWhere((m) => 
         m.timestamp.isAtSameMomentAs(message.timestamp) && 
         m.text == message.text && 
         m.contactId == message.contactId);
@@ -462,20 +448,59 @@ class _ChatPageState extends State<ChatPage> {
     return messages.where((message) {
       if (message.contactId == selectedContact!.id.toString()) return true;
       
-      String normalizedMessageNumber = _normalizePhoneNumber(message.phoneNumber);
-      String normalizedContactNumber = _normalizePhoneNumber(selectedContact!.number);
+      final String normalizedMessageNumber = _normalizePhoneNumber(message.phoneNumber);
+      final String normalizedContactNumber = _normalizePhoneNumber(selectedContact!.number);
       
       return normalizedMessageNumber == normalizedContactNumber;
     }).toList();
   }
 
+  Widget _buildMessageWidget(BuildContext context, ChatMessage message) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.7,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: message.isSent
+            ? message.isFailed
+                ? Colors.red[100]
+                : Colors.blue[100]
+            : Colors.grey[200],
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(message.text, style: const TextStyle(fontSize: 16)),
+          const SizedBox(height: 5),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                DateFormat('MM/dd hh:mm a').format(message.timestamp),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              if (message.isSent)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(
+                    message.isFailed ? Icons.error_outline : Icons.check,
+                    color: message.isFailed ? Colors.red : Colors.green,
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (contactList == null) {
-      contactList = [];
-    }
-
-    final contactMessages = _getMessagesForSelectedContact();
+    final List<ChatMessage> contactMessages = _getMessagesForSelectedContact();
 
     return Scaffold(
       body: SafeArea(
@@ -503,12 +528,10 @@ class _ChatPageState extends State<ChatPage> {
                   
                   return GestureDetector(
                     onTap: () {
-                      if (mounted) {
-                        setState(() {
-                          selectedContact = contact;
-                          debugPrint("Selected contact: ${contact.name}");
-                        });
-                      }
+                      setState(() {
+                        selectedContact = contact;
+                        debugPrint("Selected contact: ${contact.name}");
+                      });
                     },
                     child: Container(
                       width: 80,
@@ -582,65 +605,11 @@ class _ChatPageState extends State<ChatPage> {
                           itemCount: contactMessages.length,
                           itemBuilder: (context, index) {
                             final message = contactMessages[index];
-
                             return Align(
                               alignment: message.isSent
                                   ? Alignment.centerRight
                                   : Alignment.centerLeft,
-                              child: Container(
-                                constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(context).size.width * 0.7,
-                                ),
-                                margin: const EdgeInsets.symmetric(
-                                  vertical: 5,
-                                  horizontal: 10,
-                                ),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: message.isSent
-                                      ? message.isFailed
-                                          ? Colors.red[100]
-                                          : Colors.blue[100]
-                                      : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      message.text,
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          DateFormat('MM/dd hh:mm a')
-                                              .format(message.timestamp),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                        if (message.isSent)
-                                          Padding(
-                                            padding: const EdgeInsets.only(left: 4),
-                                            child: Icon(
-                                              message.isFailed
-                                                  ? Icons.error_outline
-                                                  : Icons.check,
-                                              color: message.isFailed
-                                                  ? Colors.red
-                                                  : Colors.green,
-                                              size: 16,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              child: _buildMessageWidget(context, message),
                             );
                           },
                         ),
