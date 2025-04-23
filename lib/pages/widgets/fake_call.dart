@@ -80,7 +80,6 @@ class _FakeCallPageState extends State<FakeCallPage> {
                   backgroundColor: Colors.green,
                   onPressed: () {
                     _stopRingtoneAndVibration();
-                    // You could show another screen here (like "ongoing call")
                   },
                   child: const Icon(Icons.call),
                 ),
