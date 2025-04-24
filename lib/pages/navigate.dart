@@ -20,7 +20,7 @@ class _NavigateState extends State<Navigate> {
     const HomePage(),
     const MapPage(),
     const AddContactPage(),
-    const ChatPage(),
+    ChatPage(),
     const ProfilePage(),
     //const Setting(),
   ];
