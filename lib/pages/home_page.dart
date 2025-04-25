@@ -3,7 +3,7 @@ import 'package:safe_pulse/pages/public_emergency/live_help.dart';
 import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
-import 'package:telephony/telephony.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,7 +16,6 @@ class _HomePageState extends State<HomePage> {
   final DB _db = DB();
   List<Dcontacts> emergencyContacts = [];
   bool isSendingAlerts = false;
-  final Telephony telephony = Telephony.instance;
 
   @override
   void initState() {
@@ -29,18 +28,6 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       emergencyContacts = contacts;
     });
-  }
-
-  Future<void> _requestSmsPermissions() async {
-    final bool permissionsGranted = await telephony.requestSmsPermissions ?? false;
-    if (!permissionsGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("SMS permission not granted!"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   Future<void> _sendEmergencyMessage() async {
@@ -73,10 +60,7 @@ class _HomePageState extends State<HomePage> {
 
     int successfulSends = 0;
     int failedSends = 0;
-
-    // Request SMS permissions before sending
-    await _requestSmsPermissions();
-
+    
     for (var contact in emergencyContacts) {
       try {
         final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
@@ -84,9 +68,16 @@ class _HomePageState extends State<HomePage> {
           failedSends++;
           continue;
         }
-
-        await telephony.sendSms(to: phoneNumber, message: message);
-        successfulSends++;
+        
+        final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(message)}');
+        
+        if (await canLaunchUrl(smsUri)) {
+          await launchUrl(smsUri);
+          successfulSends++;
+        } else {
+          debugPrint("Could not launch SMS for ${contact.name}");
+          failedSends++;
+        }
       } catch (e) {
         debugPrint("Error sending to ${contact.name}: $e");
         failedSends++;
@@ -250,6 +241,7 @@ class _HomePageState extends State<HomePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
+            //padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSContactsUsageDescription</key>
+	<string>Your app needs access to contacts to add/edit them.</string>
     <key>NSCameraUsageDescription</key>
 	<string>Camera access is needed to record emergency videos.</string>
 	<key>NSMicrophoneUsageDescription</key>
