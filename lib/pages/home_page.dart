@@ -3,7 +3,8 @@ import 'package:safe_pulse/pages/public_emergency/live_help.dart';
 import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_sms/flutter_sms.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,11 +31,32 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<bool> _requestSmsPermission() async {
+    var status = await Permission.sms.status;
+    if (!status.isGranted) {
+      status = await Permission.sms.request();
+    }
+    return status.isGranted;
+  }
+
   Future<void> _sendEmergencyMessage() async {
+    // Check if there are any emergency contacts
     if (emergencyContacts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("No emergency contacts to send to!"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Request SMS permission
+    if (!await _requestSmsPermission()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("SMS permission denied. Cannot send emergency alerts."),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 3),
         ),
@@ -61,27 +83,31 @@ class _HomePageState extends State<HomePage> {
     int successfulSends = 0;
     int failedSends = 0;
     
+    List<String> recipients = [];
     for (var contact in emergencyContacts) {
-      try {
-        final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
-        if (phoneNumber.isEmpty) {
-          failedSends++;
-          continue;
-        }
-        
-        final smsUri = Uri.parse('sms:$phoneNumber?body=${Uri.encodeComponent(message)}');
-        
-        if (await canLaunchUrl(smsUri)) {
-          await launchUrl(smsUri);
-          successfulSends++;
-        } else {
-          debugPrint("Could not launch SMS for ${contact.name}");
-          failedSends++;
-        }
-      } catch (e) {
-        debugPrint("Error sending to ${contact.name}: $e");
-        failedSends++;
+      final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
+      if (phoneNumber.isNotEmpty) {
+        recipients.add(phoneNumber);
       }
+    }
+    
+    try {
+      String result = await sendSMS(
+        message: message,
+        recipients: recipients,
+        sendDirect: true, // Attempts to send without user interaction
+      );
+      
+      if (result == "sent") {
+        successfulSends = recipients.length;
+      } else {
+        // Some platforms may return partial success information
+        successfulSends = recipients.length - failedSends;
+        failedSends = recipients.length - successfulSends;
+      }
+    } catch (e) {
+      debugPrint("Error sending SMS: $e");
+      failedSends = recipients.length;
     }
 
     setState(() {
@@ -241,7 +267,6 @@ class _HomePageState extends State<HomePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
-            //padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
