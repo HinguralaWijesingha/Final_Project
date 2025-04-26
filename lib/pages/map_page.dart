@@ -7,7 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_sms/flutter_sms.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -28,6 +29,22 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
     _getCurrentLocation();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    await [
+      Permission.location,
+      Permission.sms,
+    ].request();
+  }
+
+  Future<bool> _checkSmsPermission() async {
+    if (!await Permission.sms.isGranted) {
+      var status = await Permission.sms.request();
+      return status.isGranted;
+    }
+    return true;
   }
 
   Future<void> _getCurrentLocation() async {
@@ -140,8 +157,8 @@ class _MapPageState extends State<MapPage> {
 
   void _goToDestination() async {
     if (_destinationLocation != null && _currentLocation != null) {
-      _mapController.move(_currentLocation!, 15); // Focus on current location
-      await _fetchRoute(); // Fetch and draw route
+      _mapController.move(_currentLocation!, 15);
+      await _fetchRoute();
     } else {
       _showErrorMessage("Please search for a destination first.");
     }
@@ -204,19 +221,39 @@ class _MapPageState extends State<MapPage> {
           selectedContact!.number.replaceAll(RegExp(r'\D'), '');
 
       final String message =
-          "Here is my current location: https://maps.google.com/?q=${_currentLocation!.latitude},${_currentLocation!.longitude}";
+          "EMERGENCY! My current location: https://maps.google.com/?q=${_currentLocation!.latitude},${_currentLocation!.longitude}";
 
-      final String smsUrl =
-          'sms:$cleanNumber?body=${Uri.encodeComponent(message)}';
-      final Uri smsUri = Uri.parse(smsUrl);
+      try {
+        // Check SMS permission first
+        if (!await _checkSmsPermission()) {
+          _showErrorMessage("SMS permission denied");
+          return;
+        }
 
-      if (await canLaunchUrl(smsUri)) {
-        await launchUrl(
-          smsUri,
-          mode: LaunchMode.externalApplication,
+        // Attempt direct send (Android only)
+        String? result = await sendSMS(
+          message: message,
+          recipients: [cleanNumber],
+          sendDirect: true,
         );
-      } else {
-        _showErrorMessage("Could not open SMS app.");
+
+        if (result.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location shared successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          // Fallback to normal SMS sending
+          await sendSMS(
+            message: message,
+            recipients: [cleanNumber],
+          );
+        }
+      } catch (error) {
+        _showErrorMessage("Failed to send SMS: ${error.toString()}");
       }
     }
   }
