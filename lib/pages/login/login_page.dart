@@ -16,7 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   // Controllers
   final TextEditingController userController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool isLoading = false; //
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -33,9 +33,14 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sign in method
   void userIn() async {
-    //loading circle
+    setState(() {
+      isLoading = true;
+    });
+    
+    // loading circle
     showDialog(
       context: context,
+      barrierDismissible: false, // Prevent dismissing by tapping outside
       builder: (context) {
         return const Center(
           child: CircularProgressIndicator(),
@@ -43,14 +48,46 @@ class _LoginPageState extends State<LoginPage> {
       },
     );
     
-    // sign in
-    await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: userController.text.trim(),
-      password: passwordController.text.trim()
-    );
-
-    // pop the loading circle
-    Navigator.pop(context);
+    try {
+      // sign in
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: userController.text.trim(),
+        password: passwordController.text.trim()
+      );
+      
+      // pop the loading circle
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      // The StreamBuilder in UserCheckPage will automatically handle navigation
+      // No need to navigate manually here
+      
+    } on FirebaseAuthException catch (e) {
+      // pop the loading circle
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      // Show appropriate error message
+      if (e.code == 'user-not-found') {
+        showErrormessage("No user found with this email");
+      } else if (e.code == 'wrong-password') {
+        wrongPasswordMessage();
+      } else {
+        showErrormessage("Error: ${e.message}");
+      }
+    } catch (e) {
+      // pop the loading circle
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      showErrormessage("An error occurred. Please try again.");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   void showErrormessage(String message) {
@@ -197,7 +234,10 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
 
                 // Sign in button
-                Button(text: "Sign In", onTap: userIn),
+                Button(
+                  text: isLoading ? "Signing In..." : "Sign In", 
+                  onTap: isLoading ? null : userIn
+                ),
 
                 const SizedBox(height: 30),
 
@@ -241,11 +281,10 @@ class _LoginPageState extends State<LoginPage> {
                     const Text("Not a member?"),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: (){
-                        //print("Register now tapped!");
+                      onTap: () {
                         widget.onTap?.call();
                       },
-                      child:  const Text(
+                      child: const Text(
                         "Register Now",
                         style: TextStyle(
                           color: Colors.blue,
