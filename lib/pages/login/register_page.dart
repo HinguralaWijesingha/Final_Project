@@ -38,10 +38,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // Sign Up method
   void userUp() async {
-    setState(() {
-      isLoading = true;
-    });
-
     try {
       if (passwordController.text == confirmpasswordController.text) {
         UserCredential userCredential =
@@ -173,7 +169,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 20),
 
                 // Sign in button
-                Button(text: isLoading ? "Loading..." : "Sign Up", onTap: isLoading ? null : userUp),
+                Button(text: "Sign Up", onTap: userUp),
 
                 const SizedBox(height: 20),
 
