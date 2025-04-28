@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/login/forget_password_page.dart';
-import 'package:safe_pulse/pages/navigate.dart';
 import 'package:safe_pulse/text/button.dart';
 import 'package:safe_pulse/text/image.dart';
 
@@ -51,26 +50,19 @@ class _LoginPageState extends State<LoginPage> {
     
     try {
       // sign in
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: userController.text.trim(),
         password: passwordController.text.trim()
       );
       
-       // pop the loading circle
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-    
-    // FORCE NAVIGATION: If authentication is successful, manually navigate to home
-    if (mounted && userCredential.user != null) {
-      // Use pushAndRemoveUntil to clear the navigation stack
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const Navigate()),
-        (route) => false, // This removes all previous routes
-      );
-    } 
-    
+      // pop the loading circle
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      // The StreamBuilder in UserCheckPage will automatically handle navigation
+      // No need to navigate manually here
+      
     } on FirebaseAuthException catch (e) {
       // pop the loading circle
       if (mounted && Navigator.canPop(context)) {
