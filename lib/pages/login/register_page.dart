@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:safe_pulse/pages/navigate.dart';
 import 'package:safe_pulse/text/button.dart';
 import 'package:safe_pulse/text/field.dart';
 
@@ -17,11 +18,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController userController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmpasswordController =
-      TextEditingController();
+  final TextEditingController confirmpasswordController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-
   bool isLoading = false;
+
 
   @override
   void initState() {
@@ -31,8 +31,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    nameController.dispose();
     userController.dispose();
     passwordController.dispose();
+    confirmpasswordController.dispose();
+    phoneController.dispose();
     super.dispose();
   }
 
@@ -40,39 +43,56 @@ class _RegisterPageState extends State<RegisterPage> {
   void userUp() async {
     try {
       if (passwordController.text == confirmpasswordController.text) {
-        UserCredential userCredential =
-            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
           email: userController.text.trim(),
           password: passwordController.text.trim(),
         );
 
-        // Add user data to Firestore
+        if (!mounted) return;
         await FirebaseFirestore.instance
             .collection('Users')
             .doc(userCredential.user!.uid)
             .set({
-          'name': nameController.text,
-          'email': userController.text,
-          'phonenumber': phoneController.text
+          'name': nameController.text.trim(),
+          'email': userController.text.trim(),
+          'phonenumber': phoneController.text.trim(),
         });
+
+        if (!mounted) return;
+        showSuccessMessage("Account created successfully!");
+
+        Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const Navigate()),
+          );
+        }
+});
+
       } else {
-        showErrormessage("Passwords do not match");
+        showErrormessage("Passwords don't match!");
       }
     } on FirebaseAuthException catch (e) {
-      showErrormessage(e.code);
+      showErrormessage(e.message ?? "An error occurred");
+    } catch (e) {
+      showErrormessage("Something went wrong. Please try again.");
     }
   }
 
   void showErrormessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.blue,
+          backgroundColor: Colors.red,
           title: Center(
             child: Text(
               message,
               style: const TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
             ),
           ),
         );
@@ -80,16 +100,18 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  void wrongPasswordMessage() {
+  void showSuccessMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
-        return const AlertDialog(
-          backgroundColor: Colors.blue,
+        return AlertDialog(
+          backgroundColor: Colors.green,
           title: Center(
             child: Text(
-              "Wrong Password",
-              style: TextStyle(color: Colors.white),
+              message,
+              style: const TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
             ),
           ),
         );
@@ -168,7 +190,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 20),
 
-                // Sign in button
+                // Sign up button
                 Button(text: "Sign Up", onTap: userUp),
 
                 const SizedBox(height: 20),
@@ -177,11 +199,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Have an account"),
+                    const Text("Have an account?"),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: () {
-                        // Navigate back to login screen
+                      onTap: (){
                         Navigator.pop(context);
                       },
                       child: const Text(
