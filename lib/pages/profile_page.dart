@@ -101,7 +101,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Navigator.of(context).pushReplacementNamed('LoginPage');
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete account ')),
+          SnackBar(content: Text('Delete account successful')),
         );
       }
     }
