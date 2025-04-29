@@ -159,9 +159,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   subText: "Phone Number",
                   onPressed: () => edit("phone number"),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 50),
 
-                // Delete Account + Logout Buttons
+                // Delete Account 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Column(
