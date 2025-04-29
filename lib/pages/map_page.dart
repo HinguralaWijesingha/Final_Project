@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -24,12 +25,24 @@ class _MapPageState extends State<MapPage> {
   LatLng? _currentLocation;
   LatLng? _destinationLocation;
   List<LatLng> _route = [];
+  
+  // Stream subscription for location updates
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
     _requestPermissions();
+    _initializeLocationTracking();
+  }
+  
+  @override
+  void dispose() {
+    // Cancel the subscription when the widget is disposed
+    _positionStreamSubscription?.cancel();
+    _mapController.dispose();
+    _locationController.dispose();
+    super.dispose();
   }
 
   Future<void> _requestPermissions() async {
@@ -38,13 +51,15 @@ class _MapPageState extends State<MapPage> {
       Permission.sms,
     ].request();
   }
-
-  Future<bool> _checkSmsPermission() async {
-    if (!await Permission.sms.isGranted) {
-      var status = await Permission.sms.request();
-      return status.isGranted;
-    }
-    return true;
+  
+  Future<void> _initializeLocationTracking() async {
+    if (!await _checkLocationPermission()) return;
+    
+    // First get current location to initialize the map
+    await _getCurrentLocation();
+    
+    // Then start the stream for continuous updates
+    _startLocationUpdates();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -58,6 +73,47 @@ class _MapPageState extends State<MapPage> {
       _isLoading = false;
     });
   }
+  
+  void _startLocationUpdates() {
+    // Create location settings
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // Update every 10 meters
+    );
+    
+    // Start listening to the position stream
+    _positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: locationSettings
+    ).listen((Position position) {
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+        
+        // If we're following the user's location, update the map center
+        if (_shouldFollowUser) {
+          _mapController.move(_currentLocation!, _mapController.camera.zoom);
+        }
+        
+        // If we have a destination, update the route
+        if (_destinationLocation != null) {
+          _fetchRoute();
+        }
+      });
+    }, onError: (error) {
+      _showErrorMessage("Location stream error: $error");
+    });
+  }
+
+  Future<bool> _checkSmsPermission() async {
+    if (!await Permission.sms.isGranted) {
+      var status = await Permission.sms.request();
+      return status.isGranted;
+    }
+    return true;
+  }
+
+  // Flag to determine if the map should follow the user's location
+  bool _shouldFollowUser = true;
 
   Future<void> _getDestinationLocation(String location) async {
     final url = Uri.parse(
@@ -80,6 +136,7 @@ class _MapPageState extends State<MapPage> {
         if (!mounted) return;
         setState(() {
           _destinationLocation = LatLng(lat, lon);
+          _shouldFollowUser = false; // Stop following user when destination is set
         });
         await _fetchRoute();
       } else {
@@ -150,6 +207,9 @@ class _MapPageState extends State<MapPage> {
   void _userCurrentLocation() {
     if (_currentLocation != null) {
       _mapController.move(_currentLocation!, 15);
+      setState(() {
+        _shouldFollowUser = true; // Enable following when user clicks on location button
+      });
     } else {
       _showErrorMessage("Unable to get current location");
     }
@@ -273,7 +333,13 @@ class _MapPageState extends State<MapPage> {
                           _currentLocation ?? const LatLng(6.9271, 79.8612),
                       initialZoom: 2,
                       minZoom: 0,
-                      maxZoom: 100,
+                      maxZoom: 150,
+                      onTap: (_, __) {
+                        // Disable following when user interacts with the map
+                        setState(() {
+                          _shouldFollowUser = false;
+                        });
+                      },
                     ),
                     children: [
                       TileLayer(
@@ -351,6 +417,23 @@ class _MapPageState extends State<MapPage> {
                 ]),
               ),
             ),
+            // Show a 'following' indicator when active
+            if (_shouldFollowUser && _currentLocation != null)
+              Positioned(
+                bottom: 200,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Following',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -366,7 +449,7 @@ class _MapPageState extends State<MapPage> {
           const SizedBox(height: 10),
           FloatingActionButton(
             onPressed: _userCurrentLocation,
-            backgroundColor: Colors.blue,
+            backgroundColor: _shouldFollowUser ? Colors.blue.shade800 : Colors.blue,
             child: const Icon(
               Icons.my_location,
               size: 30,
