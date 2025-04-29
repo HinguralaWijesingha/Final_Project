@@ -31,14 +31,14 @@ class _NavigateState extends State<Navigate> {
     return Scaffold(
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
-        color: Colors.blue,
+        color: Colors.white,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
           child: GNav(
             gap: 8,
-            backgroundColor: Colors.blue,
+            backgroundColor: Colors.white,
             color: Colors.black,
-            activeColor: Colors.white,
+            activeColor: Colors.black,
             selectedIndex: _selectedIndex,
             onTabChange: (index) {
               setState(() {
