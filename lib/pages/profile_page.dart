@@ -159,7 +159,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   subText: "Phone Number",
                   onPressed: () => edit("phone number"),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 40),
 
                 // Delete Account + Logout Buttons
                 Padding(
@@ -174,21 +174,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         onPressed: () => _confirmDeleteAccount(context),
                         child: const Text(
                           'Delete My Account',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          minimumSize: const Size(double.infinity, 45),
-                        ),
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                          Navigator.of(context).pushReplacementNamed('LoginPage');
-                        },
-                        child: const Text(
-                          'Logout',
                           style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ),
