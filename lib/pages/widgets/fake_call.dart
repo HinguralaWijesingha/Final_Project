@@ -14,6 +14,7 @@ class FakeCallPage extends StatefulWidget {
 class _FakeCallPageState extends State<FakeCallPage> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isCallAnswered = false;
+  bool _isSpeakerOn = false; // Added for speaker functionality
   Duration _callDuration = Duration.zero;
   Timer? _timer;
 
@@ -135,14 +136,44 @@ class _FakeCallPageState extends State<FakeCallPage> {
     return '${twoDigits(d.inMinutes)}:${twoDigits(d.inSeconds.remainder(60))}';
   }
 
+  // Toggle speaker mode
+  void _toggleSpeaker() async {
+    setState(() {
+      _isSpeakerOn = !_isSpeakerOn;
+    });
+    
+    // Set the volume based on speaker mode
+    // Note: AudioPlayers doesn't directly control system speaker mode,
+    // but we can adjust volume to simulate speaker mode
+    if (_isSpeakerOn) {
+      await _audioPlayer.setVolume(1.0); // Maximum volume
+    } else {
+      await _audioPlayer.setVolume(0.5); // Normal volume
+    }
+  }
+
   // Play the appropriate fake voice message based on language
   void _playFakeVoice() async {
     if (language == 'english') {
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       await _audioPlayer.play(AssetSource('fake_voice_english.mp3'));
+      
+      // Set initial volume based on speaker setting
+      if (_isSpeakerOn) {
+        await _audioPlayer.setVolume(1.0);
+      } else {
+        await _audioPlayer.setVolume(0.5);
+      }
     } else if (language == 'sinhala') {
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       //await _audioPlayer.play(AssetSource('fake_voice_sinhala.mp3'));
+      
+      // Set initial volume based on speaker setting
+      if (_isSpeakerOn) {
+        await _audioPlayer.setVolume(1.0);
+      } else {
+        await _audioPlayer.setVolume(0.5);
+      }
     }
   }
 
@@ -150,6 +181,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
   void dispose() {
     _stopRingtoneAndVibration();
     _timer?.cancel();
+    _audioPlayer.dispose(); // Properly dispose of the audio player
     super.dispose();
   }
 
@@ -199,6 +231,13 @@ class _FakeCallPageState extends State<FakeCallPage> {
                       _startCallTimer();
                     },
                     child: const Icon(Icons.call),
+                  ),
+                // Only show speaker button when the call is answered
+                if (_isCallAnswered)
+                  FloatingActionButton(
+                    backgroundColor: _isSpeakerOn ? Colors.blue : Colors.grey,
+                    onPressed: _toggleSpeaker,
+                    child: const Icon(Icons.volume_up),
                   ),
               ],
             ),
