@@ -9,6 +9,7 @@ class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.onTap});
 
   @override
+  // ignore: library_private_types_in_public_api
   _LoginPageState createState() => _LoginPageState();
 }
 
