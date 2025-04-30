@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:safe_pulse/pages/login/login_page.dart';
 import 'package:safe_pulse/pages/widgets/profile_text.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -13,8 +14,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
   final usersCollection = FirebaseFirestore.instance.collection('Users');
+  bool isDeleting = false;
 
-  // Edit profile fields
   Future<void> edit(String field) async {
     String newValue = "";
     await showDialog(
@@ -55,19 +56,79 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
 
-    // Update
     if (newValue.trim().isNotEmpty) {
       await usersCollection.doc(currentUser.uid).update({field: newValue});
     }
   }
 
-  // Delete user account
+  Future<void> _deleteUserAccount() async {
+    setState(() => isDeleting = true);
+    
+    try {
+      // First delete Firestore data
+      await _deleteUserData();
+      
+      // Then delete auth account
+      await _deleteAuthAccount();
+      
+      // Navigate to login page
+      _navigateToLogin();
+      
+    } catch (e) {
+      _showErrorSnackbar(e);
+    } finally {
+      setState(() => isDeleting = false);
+    }
+  }
+
+  Future<void> _deleteUserData() async {
+    try {
+      // Delete main user document
+      await usersCollection.doc(currentUser.uid).delete();
+      
+      // Add any additional collections/subcollections to delete here
+      // Example: await usersCollection.doc(currentUser.uid).collection('subcollection').get().then(...);
+    } catch (e) {
+      debugPrint('Error deleting user data: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _deleteAuthAccount() async {
+    try {
+      // Reauthenticate may be required here for recently logged-in users
+      await currentUser.delete();
+    } catch (e) {
+      debugPrint('Error deleting auth account: $e');
+      rethrow;
+    }
+  }
+
+  void _navigateToLogin() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) =>  LoginPage(onTap: () {  },)),
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  void _showErrorSnackbar(dynamic error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to delete account: ${error.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteAccount(BuildContext context) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Account'),
-        content: const Text('Are you sure you want to permanently delete your account?'),
+        content: const Text(
+          'This will permanently delete all your data. This action cannot be undone.',
+          style: TextStyle(fontSize: 16),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -76,7 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
-              'Delete',
+              'Delete Forever',
               style: TextStyle(color: Colors.red),
             ),
           ),
@@ -85,25 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (shouldDelete == true) {
-      try {
-        final user = FirebaseAuth.instance.currentUser;
-
-        // Delete Firestore user document
-        await FirebaseFirestore.instance.collection('Users').doc(user!.uid).delete();
-
-        // Delete Firebase Authentication user
-        await user.delete();
-
-        // Sign out user just in case
-        await FirebaseAuth.instance.signOut();
-
-        // Navigate to login screen
-        Navigator.of(context).pushReplacementNamed('LoginPage');
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete account successful')),
-        );
-      }
+      await _deleteUserAccount();
     }
   }
 
@@ -112,80 +155,90 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('Users')
-            .doc(currentUser.uid)
-            .snapshots(),
+        stream: usersCollection.doc(currentUser.uid).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final userData = snapshot.data!.data() as Map<String, dynamic>?;
-            return ListView(
-              children: [
-                const SizedBox(height: 40),
-                const Icon(
-                  Icons.person,
-                  size: 70,
-                  color: Colors.black,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  currentUser.email!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.black),
-                ),
-                const SizedBox(height: 30),
-                Padding(
-                  padding: const EdgeInsets.only(left: 25.0),
-                  child: Text(
-                    'My Details',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                ProfileText(
-                  text: userData!['name'],
-                  subText: "User Name",
-                  onPressed: () => edit("name"),
-                ),
-                ProfileText(
-                  text: currentUser.email!,
-                  subText: "Email",
-                  onPressed: () => edit("email"),
-                ),
-                ProfileText(
-                  text: userData['phonenumber'],
-                  subText: "Phone Number",
-                  onPressed: () => edit("phone number"),
-                ),
-                const SizedBox(height: 50),
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                // Delete Account 
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 25),
-                  child: Column(
-                    children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          minimumSize: const Size(double.infinity, 50), // Full width + consistent height
-                        ),
-                        onPressed: () => _confirmDeleteAccount(context),
-                        child: const Text(
-                          'Delete My Account',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          } else if (snapshot.hasError) {
+          if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          return const Center(child: CircularProgressIndicator());
+
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('User data not found'));
+          }
+
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+
+          return Stack(
+            children: [
+              ListView(
+                children: [
+                  const SizedBox(height: 40),
+                  const Icon(Icons.person, size: 70, color: Colors.black),
+                  const SizedBox(height: 10),
+                  Text(
+                    currentUser.email!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  const SizedBox(height: 30),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 25.0),
+                    child: Text(
+                      'My Details',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ProfileText(
+                    text: userData['name'],
+                    subText: "User Name",
+                    onPressed: () => edit("name"),
+                  ),
+                  ProfileText(
+                    text: currentUser.email!,
+                    subText: "Email",
+                    onPressed: () => edit("email"),
+                  ),
+                  ProfileText(
+                    text: userData['phonenumber'],
+                    subText: "Phone Number",
+                    onPressed: () => edit("phonenumber"),
+                  ),
+                  const SizedBox(height: 50),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[700],
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: isDeleting ? null : () => _confirmDeleteAccount(context),
+                      child: isDeleting
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Delete My Account',
+                              style: TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+              if (isDeleting)
+                const ModalBarrier(
+                  color: Colors.black54,
+                  dismissible: false,
+                ),
+            ],
+          );
         },
       ),
     );
