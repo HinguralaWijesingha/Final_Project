@@ -58,6 +58,9 @@ class _LoginPageState extends State<LoginPage> {
       // pop the loading circle
       if (mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
+
+        Navigator.pushReplacementNamed(context, '/navigate');
+
       }
       
       // The StreamBuilder in UserCheckPage will automatically handle navigation
