@@ -51,6 +51,7 @@ class _AddContactPageState extends State<AddContactPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: prefer_conditional_assignment
     if (contactList == null) {
       contactList = [];
     }
