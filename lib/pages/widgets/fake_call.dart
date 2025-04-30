@@ -8,6 +8,7 @@ class FakeCallPage extends StatefulWidget {
   const FakeCallPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _FakeCallPageState createState() => _FakeCallPageState();
 }
 
@@ -53,6 +54,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
 
     // Show dialog to input caller's name and select language
     await showDialog(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (context) {
         return AlertDialog(
