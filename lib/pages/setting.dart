@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/profile_page.dart';
+import 'package:safe_pulse/pages/widgets/battery.dart';
 import 'package:safe_pulse/pages/widgets/fake_call.dart';
 import 'package:safe_pulse/pages/login/login_page.dart'; 
 
@@ -117,6 +118,20 @@ class _SettingState extends State<Setting> {
                         );
                       },
                     ),
+                    ListTile(
+                          leading: const Icon(Icons.battery_std, color: Colors.black), // Standard battery icon
+                          title: const Text(
+                            "Battery Status",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const BatteryMonitorPage()),
+                            );
+                          },
+                        ),
                     const SizedBox(height: 10),
                     ListTile(
                       leading: const Icon(Icons.phone, color: Colors.black),
