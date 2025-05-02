@@ -63,6 +63,8 @@ dependencies:
   record: ^4.4.4 
   path_provider: ^2.1.2
   media_scanner: ^2.0.0
+  battery_plus: ^3.0.2
+  workmanager: ^0.5.0
 
 
 dev_dependencies:
