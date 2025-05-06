@@ -12,6 +12,8 @@
           <uses-permission android:name="android.permission.RECORD_AUDIO"/>
           <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
           <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+          <uses-permission android:name="android.permission.WAKE_LOCK" />
+          <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
 
     <application
@@ -49,6 +51,19 @@
             <receiver android:name="com.shounakmulay.telephony.sms.SmsReceiver" android:exported="true">
                 <intent-filter>
                     <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+                </intent-filter>
+            </receiver>
+
+             <service
+                android:name="com.transistorsoft.flutter.backgroundfetch.BackgroundFetchService"
+                android:enabled="true"
+                android:exported="false"
+                android:stopWithTask="false" />
+
+            <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+                <intent-filter>
+                    <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                    <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
                 </intent-filter>
             </receiver>
 
