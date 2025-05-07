@@ -1,175 +1,208 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:telephony/telephony.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
+import 'package:safe_pulse/model/message_model.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_sms/flutter_sms.dart'; 
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatPage extends StatefulWidget {
+  final int contactId;
+
+  const ChatPage({Key? key, required this.contactId}) : super(key: key);
+
   @override
-  _ChatPageState createState() => _ChatPageState();
+  State<ChatPage> createState() => _ChatPageState();
 }
 
 class _ChatPageState extends State<ChatPage> {
+  final DB _db = DB();
   final TextEditingController _messageController = TextEditingController();
-  final Telephony telephony = Telephony.instance;
-  String? selectedContact;
-  String? selectedContactName;
-  List<Dcontacts> contactList = [];
-  DB db = DB();
+  final ScrollController _scrollController = ScrollController();
+  
+  Dcontacts? _contact;
+  List<Message> _messages = [];
+  bool _isSendingMessage = false;
+  bool _smsPermissionGranted = false;
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
-    _messageController.addListener(() {
-      setState(() {}); // Update send button state
+    _loadContact();
+    _loadMessages();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final status = await Permission.sms.status;
+    setState(() {
+      _smsPermissionGranted = status.isGranted;
     });
-
-    telephony.listenIncomingSms(
-      onNewMessage: (SmsMessage message) {
-        Fluttertoast.showToast(
-          msg: "New SMS from ${message.address}: ${message.body}",
-        );
-      },
-      onBackgroundMessage: _backgroundMessageHandler,
-    );
   }
 
-  static void _backgroundMessageHandler(SmsMessage message) async {
-    debugPrint("Background SMS received: ${message.body}");
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadContacts() async {
+  Future<void> _loadContact() async {
     try {
-      List<Dcontacts> contacts = await db.getContacts();
+      final contact = await _db.getContactById(widget.contactId);
       setState(() {
-        contactList = contacts;
+        _contact = contact;
       });
     } catch (e) {
-      debugPrint("Failed to load contacts: $e");
-      Fluttertoast.showToast(msg: "Error loading contacts.");
+      Fluttertoast.showToast(msg: "Error loading contact: $e");
+      Navigator.pop(context);
     }
+  }
+
+  Future<void> _loadMessages() async {
+    try {
+      final messages = await _db.getMessagesForContact(widget.contactId);
+      setState(() {
+        _messages = messages;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error loading messages: $e");
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
-    String message = _messageController.text.trim();
-    if (message.isEmpty) {
-      Fluttertoast.showToast(msg: "Please enter a message");
-      return;
-    }
-
-    if (selectedContact == null) {
-      Fluttertoast.showToast(msg: "Please select a contact");
-      return;
-    }
-
-    bool? permissionsGranted = await telephony.requestSmsPermissions;
-    if (!(permissionsGranted ?? false)) {
-      Fluttertoast.showToast(msg: "SMS permission denied");
-      return;
-    }
+    if (_messageController.text.trim().isEmpty || _isSendingMessage) return;
+    
+    setState(() {
+      _isSendingMessage = true;
+    });
 
     try {
-      bool? canSendSms = await telephony.isSmsCapable;
-      if (canSendSms != true) {
-        Fluttertoast.showToast(msg: "Device cannot send SMS");
-        return;
+      final now = DateTime.now();
+      final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+      final messageContent = _messageController.text;
+      
+      // Always save the message to local database first
+      final message = Message(
+        widget.contactId,
+        messageContent,
+        timestamp,
+        true,
+      );
+      await _db.insertMessage(message);
+
+      // Only attempt to send SMS if we have a contact and permission
+      if (_contact != null) {
+        if (!_smsPermissionGranted) {
+          final status = await Permission.sms.request();
+          setState(() {
+            _smsPermissionGranted = status.isGranted;
+          });
+        }
+
+        if (_smsPermissionGranted) {
+          try {
+            await _sendSMS(messageContent, [_contact!.number]);
+            Fluttertoast.showToast(msg: "Message sent");
+          } catch (e) {
+            Fluttertoast.showToast(
+              msg: "Message saved but couldn't send SMS: $e",
+              toastLength: Toast.LENGTH_LONG,
+            );
+          }
+        } else {
+          Fluttertoast.showToast(
+            msg: "Message saved but SMS permission denied",
+            toastLength: Toast.LENGTH_LONG,
+          );
+        }
       }
 
-      await telephony.sendSms(
-        to: selectedContact!,
-        message: message,
-      );
-
-      Fluttertoast.showToast(
-        msg: "Message queued for sending",
-        toastLength: Toast.LENGTH_SHORT,
-      );
       _messageController.clear();
+      await _loadMessages();
+
     } catch (e) {
       Fluttertoast.showToast(
-        msg: "Message will be sent when network is available",
+        msg: "Error: ${e.toString()}",
         toastLength: Toast.LENGTH_LONG,
       );
-      debugPrint("SMS queued offline: $e");
+    } finally {
+      setState(() {
+        _isSendingMessage = false;
+      });
     }
   }
 
-  Future<void> _selectContact() async {
-    final selected = await showDialog<Dcontacts>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Select Contact"),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: contactList.length,
-            itemBuilder: (context, index) {
-              final contact = contactList[index];
-              return ListTile(
-                title: Text(contact.name),
-                subtitle: Text(contact.number),
-                onTap: () => Navigator.pop(context, contact),
-              );
-            },
+  Future<void> _sendSMS(String message, List<String> recipients) async {
+    try {
+      String result = await sendSMS(
+        message: message,
+        recipients: recipients,
+        sendDirect: true,
+      );
+      print("SMS Result: $result");
+    } catch (error) {
+      print("Error sending SMS: $error");
+      throw error;
+    }
+  }
+
+  Widget _buildMessageBubble(Message message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+      child: Align(
+        alignment: message.isFromMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: message.isFromMe ? Colors.blue : Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message.content,
+                style: TextStyle(
+                  color: message.isFromMe ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                DateFormat('HH:mm').format(
+                  DateFormat('yyyy-MM-dd HH:mm:ss').parse(message.timestamp)
+                ),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: message.isFromMe ? Colors.white70 : Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
-
-    if (selected != null) {
-      setState(() {
-        selectedContact = selected.number;
-        selectedContactName = selected.name;
-      });
-    }
   }
-
-  bool get _canSendMessage =>
-      _messageController.text.trim().isNotEmpty && selectedContact != null;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(selectedContactName != null
-            ? "Chat with $selectedContactName"
-            : "Chat Page"),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.contact_phone),
-            onPressed: _selectContact,
-          ),
-        ],
+        title: Text(_contact?.name ?? "Chat"),
       ),
       body: Column(
         children: [
-          if (selectedContact != null)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Chip(
-                label: Text("To: ${selectedContactName ?? ''} ($selectedContact)"),
-                deleteIcon: Icon(Icons.close),
-                onDeleted: () {
-                  setState(() {
-                    selectedContact = null;
-                    selectedContactName = null;
-                  });
-                },
-              ),
-            ),
           Expanded(
-            child: ListView(
-              children: [
-                Center(child: Text("Start chatting...")),
-              ],
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: _messages.length,
+              padding: const EdgeInsets.all(8),
+              itemBuilder: (context, index) {
+                return _buildMessageBubble(_messages[index]);
+              },
             ),
           ),
           Padding(
@@ -180,14 +213,27 @@ class _ChatPageState extends State<ChatPage> {
                   child: TextField(
                     controller: _messageController,
                     decoration: InputDecoration(
-                      hintText: "Enter your message",
-                      border: OutlineInputBorder(),
+                      hintText: "Type a message...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
+                    minLines: 1,
+                    maxLines: 3,
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.send),
-                  onPressed: _canSendMessage ? _sendMessage : null,
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.blue,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: _sendMessage,
+                  ),
                 ),
               ],
             ),

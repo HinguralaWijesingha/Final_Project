@@ -1,11 +1,21 @@
 import 'package:safe_pulse/model/contactdb.dart';
+import 'package:safe_pulse/model/message_model.dart';
 import 'package:sqflite/sqflite.dart';
 
 class DB {
+  // Contact table
   String contactTable = 'contacts_table';
   String contactid = 'id';
   String contactName = 'name';
   String contactNumber = 'number';
+
+  // Message table
+  String messageTable = 'messages_table';
+  String messageId = 'id';
+  String messageContactId = 'contact_id';
+  String messageContent = 'content';
+  String messageTimestamp = 'timestamp';
+  String messageIsFromMe = 'is_from_me';
 
   DB._createInstance();
 
@@ -26,14 +36,44 @@ class DB {
     String path = await getDatabasesPath();
     String location = '${path}contacts.db';
 
-    var contactDb = await openDatabase(location, version: 1, onCreate: _createDbTable);
+    var contactDb = await openDatabase(location, version: 2, onCreate: _createDbTable, onUpgrade: _upgradeDb);
     return contactDb;
   }
 
   void _createDbTable(Database db, int version) async {
+    // Create contacts table
     await db.execute('CREATE TABLE $contactTable($contactid INTEGER PRIMARY KEY AUTOINCREMENT, $contactName TEXT, $contactNumber TEXT)');
+    
+    // Create messages table
+    await db.execute('''
+      CREATE TABLE $messageTable(
+        $messageId INTEGER PRIMARY KEY AUTOINCREMENT, 
+        $messageContactId INTEGER, 
+        $messageContent TEXT, 
+        $messageTimestamp TEXT,
+        $messageIsFromMe INTEGER,
+        FOREIGN KEY ($messageContactId) REFERENCES $contactTable($contactid) ON DELETE CASCADE
+      )
+    ''');
   }
 
+  void _upgradeDb(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Create messages table if upgrading from version 1
+      await db.execute('''
+        CREATE TABLE $messageTable(
+          $messageId INTEGER PRIMARY KEY AUTOINCREMENT, 
+          $messageContactId INTEGER, 
+          $messageContent TEXT, 
+          $messageTimestamp TEXT,
+          $messageIsFromMe INTEGER,
+          FOREIGN KEY ($messageContactId) REFERENCES $contactTable($contactid) ON DELETE CASCADE
+        )
+      ''');
+    }
+  }
+
+  // Contact methods
   Future<List<Map<String, dynamic>>> getContactMapList() async {
     Database db = await database;
     List<Map<String, dynamic>> result = await db.rawQuery('SELECT * FROM $contactTable ORDER BY $contactid ASC');
@@ -73,11 +113,55 @@ class DB {
     
     for (int i = 0; i < count; i++) {
       contacts.add(Dcontacts.fromMapObject(contactMapList[i]));
-  }
+    }
     return contacts;
+  }
+  
+  Future<Dcontacts> getContactById(int id) async {
+    Database db = await database;
+    List<Map<String, dynamic>> result = await db.query(
+      contactTable,
+      where: '$contactid = ?',
+      whereArgs: [id]
+    );
     
+    if (result.isNotEmpty) {
+      return Dcontacts.fromMapObject(result.first);
+    } else {
+      throw Exception('Contact not found');
+    }
   }
 
+  // Message methods
+  Future<int> insertMessage(Message message) async {
+    Database db = await database;
+    var result = await db.insert(messageTable, message.toMap());
+    return result;
+  }
 
+  Future<List<Message>> getMessagesForContact(int contactId) async {
+    Database db = await database;
+    List<Map<String, dynamic>> result = await db.query(
+      messageTable,
+      where: '$messageContactId = ?',
+      whereArgs: [contactId],
+      orderBy: '$messageTimestamp ASC'
+    );
+    
+    List<Message> messages = <Message>[];
+    for (var map in result) {
+      messages.add(Message.fromMapObject(map));
+    }
+    return messages;
+  }
 
+  Future<int> deleteAllMessagesForContact(int contactId) async {
+    Database db = await database;
+    int result = await db.delete(
+      messageTable,
+      where: '$messageContactId = ?',
+      whereArgs: [contactId]
+    );
+    return result;
+  }
 }
