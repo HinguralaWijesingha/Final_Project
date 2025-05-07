@@ -401,10 +401,6 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
                         child: ListTile(
                           title: Text(contact.name),
                           subtitle: Text(contact.number),
-                          trailing: const Icon(
-                            Icons.emergency,
-                            color: Colors.red,
-                          ),
                         ),
                       );
                     },
