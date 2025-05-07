@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter_sms/flutter_sms.dart';
@@ -20,6 +22,8 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   bool _alertSent = false;
   List<Dcontacts> _emergencyContacts = [];
   final DB _db = DB();
+  bool _isDisposed = false;
+  StreamSubscription<BatteryState>? _batteryStateSubscription;
 
   @override
   void initState() {
@@ -29,8 +33,18 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
     _initBackgroundTask();
   }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _batteryStateSubscription?.cancel();
+    Workmanager().cancelByTag("batteryCheckTask");
+    AndroidAlarmManager.cancel(0);
+    super.dispose();
+  }
+
   Future<void> _loadEmergencyContacts() async {
     List<Dcontacts> contacts = await _db.getContacts();
+    if (!mounted) return;
     setState(() {
       _emergencyContacts = contacts;
     });
@@ -39,11 +53,11 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   Future<void> _initBatteryMonitoring() async {
     _batteryLevel = await _battery.batteryLevel;
     
-    _battery.onBatteryStateChanged.listen((BatteryState state) async {
+    _batteryStateSubscription = _battery.onBatteryStateChanged.listen((BatteryState state) async {
       if (state == BatteryState.discharging) {
         _startBatteryMonitoring();
       } else {
-        setState(() {
+        _safeSetState(() {
           _alertSent = false;
         });
       }
@@ -54,10 +68,14 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   }
 
   void _startPeriodicBatteryCheck() {
+    if (_isDisposed) return;
+    
     Future.delayed(const Duration(seconds: 30), () {
+      if (_isDisposed) return;
+      
       if (_isMonitoring) {
         _battery.batteryLevel.then((level) {
-          setState(() {
+          _safeSetState(() {
             _batteryLevel = level;
           });
           _checkBatteryLevel(level);
@@ -68,19 +86,23 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   }
 
   void _startBatteryMonitoring() {
-    if (!_isMonitoring) {
-      setState(() {
-        _isMonitoring = true;
-      });
-      _checkBatteryLevel(_batteryLevel);
-      _startPeriodicBatteryCheck();
+    _safeSetState(() {
+      _isMonitoring = true;
+    });
+    _checkBatteryLevel(_batteryLevel);
+    _startPeriodicBatteryCheck();
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (mounted && !_isDisposed) {
+      setState(fn);
     }
   }
 
   Future<void> _checkBatteryLevel(int level) async {
     if (level <= 50 && !_alertSent && _isMonitoring && _emergencyContacts.isNotEmpty) {
       await _sendLowBatteryAlert();
-      setState(() {
+      _safeSetState(() {
         _alertSent = true;
       });
     }
@@ -113,15 +135,12 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
     }
   }
 
-  // Background task initialization
   Future<void> _initBackgroundTask() async {
-    // Initialize WorkManager
     await Workmanager().initialize(
       callbackDispatcher,
       isInDebugMode: false,
     );
 
-    // Register periodic task (Android)
     await Workmanager().registerPeriodicTask(
       "batteryCheckTask",
       "batteryCheckTask",
@@ -131,18 +150,16 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
       ),
     );
 
-    // Initialize Android Alarm Manager
     await AndroidAlarmManager.initialize();
     await AndroidAlarmManager.periodic(
       const Duration(minutes: 15),
-      0, // Unique ID
+      0,
       _checkBatteryInBackground,
       exact: true,
       wakeup: true,
     );
   }
 
-  // Background task function
   @pragma('vm:entry-point')
   static Future<void> _checkBatteryInBackground() async {
     final battery = Battery();
@@ -171,20 +188,12 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
     }
   }
 
-  // Callback dispatcher for WorkManager
   @pragma('vm:entry-point')
   static void callbackDispatcher() {
     Workmanager().executeTask((task, inputData) async {
       await _checkBatteryInBackground();
       return true;
     });
-  }
-
-  @override
-  void dispose() {
-    Workmanager().cancelByTag("batteryCheckTask");
-    AndroidAlarmManager.cancel(0);
-    super.dispose();
   }
 
   @override
