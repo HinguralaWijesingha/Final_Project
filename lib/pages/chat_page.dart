@@ -6,6 +6,9 @@ import 'package:safe_pulse/model/message_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_sms/flutter_sms.dart'; 
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+
+import 'package:safe_pulse/text/sms.dart';
 
 class ChatPage extends StatefulWidget {
   final int contactId;
@@ -25,6 +28,7 @@ class _ChatPageState extends State<ChatPage> {
   List<Message> _messages = [];
   bool _isSendingMessage = false;
   bool _smsPermissionGranted = false;
+  StreamSubscription<Message>? _messageSubscription;
 
   @override
   void initState() {
@@ -32,6 +36,13 @@ class _ChatPageState extends State<ChatPage> {
     _loadContact();
     _loadMessages();
     _checkPermissions();
+    _setupMessageListener();
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkPermissions() async {
@@ -65,6 +76,14 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  void _setupMessageListener() {
+    _messageSubscription = SMSService().messageStream.listen((message) {
+      if (message.contactId == widget.contactId) {
+        _loadMessages();
+      }
+    });
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -85,7 +104,6 @@ class _ChatPageState extends State<ChatPage> {
       final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
       final messageContent = _messageController.text;
       
-      // Always save the message to local database first
       final message = Message(
         widget.contactId,
         messageContent,
@@ -94,7 +112,6 @@ class _ChatPageState extends State<ChatPage> {
       );
       await _db.insertMessage(message);
 
-      // Only attempt to send SMS if we have a contact and permission
       if (_contact != null) {
         if (!_smsPermissionGranted) {
           final status = await Permission.sms.request();
@@ -192,6 +209,12 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_contact?.name ?? "Chat"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _loadMessages,
+          ),
+        ],
       ),
       body: Column(
         children: [
