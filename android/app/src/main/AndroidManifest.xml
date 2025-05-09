@@ -21,6 +21,7 @@
           <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
           <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
           <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+          <uses-permission android:name="android.permission.BROADCAST_SMS" />
 
 
     <application
@@ -55,13 +56,20 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-            <receiver android:name="com.shounakmulay.telephony.sms.IncomingSmsReceiver"
-                android:permission="android.permission.BROADCAST_SMS"
-                android:exported="true">
-                <intent-filter>
+             <receiver
+                android:name=".SmsReceiver"
+                android:enabled="true"
+                android:exported="true"
+                android:permission="android.permission.BROADCAST_SMS">
+                <intent-filter android:priority="999">
                     <action android:name="android.provider.Telephony.SMS_RECEIVED" />
                 </intent-filter>
-            </receiver>
+        </receiver>
+
+                <service
+            android:name=".SmsService"
+            android:exported="false"
+            android:stopWithTask="false" />
 
              <service
                 android:name="com.transistorsoft.flutter.backgroundfetch.BackgroundFetchService"

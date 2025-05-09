@@ -10,116 +10,134 @@ class SMSService {
   static final SMSService _instance = SMSService._internal();
   final Telephony telephony = Telephony.instance;
   final DB db = DB();
-  final StreamController<Message> _messageStreamController = StreamController<Message>.broadcast();
+  final StreamController<Message> _messageStreamController = 
+      StreamController<Message>.broadcast();
   
   bool _isInitialized = false;
+  bool _permissionsGranted = false;
 
-  factory SMSService() {
-    return _instance;
-  }
+  factory SMSService() => _instance;
   
   SMSService._internal();
 
   Stream<Message> get messageStream => _messageStreamController.stream;
+  bool get isInitialized => _isInitialized;
+  bool get permissionsGranted => _permissionsGranted;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
     
     debugPrint('Initializing SMS Service...');
     
-    // Request SMS permissions
-    bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
-    
-    if (permissionsGranted == true) {
-      debugPrint('SMS permissions granted');
-      // Register SMS listener for both foreground and background messages
-      telephony.listenIncomingSms(
-        onNewMessage: _onMessageReceived,
-        onBackgroundMessage: backgroundMessageHandler,
-        listenInBackground: true,
-      );
-      _isInitialized = true;
+    try {
+      // Request SMS permissions
+      _permissionsGranted = await telephony.requestPhoneAndSmsPermissions ?? false;
       
-      // Also check for any new messages that might have arrived
-      // while the app was closed
-      _checkForNewMessages();
-    } else {
-      debugPrint('SMS permissions denied');
+      if (_permissionsGranted) {
+        debugPrint('SMS permissions granted');
+        
+        // Register SMS listeners
+        telephony.listenIncomingSms(
+          onNewMessage: _onMessageReceived,
+          onBackgroundMessage: backgroundMessageHandler,
+          listenInBackground: true,
+        );
+        
+        _isInitialized = true;
+        await _checkForNewMessages();
+      } else {
+        debugPrint('SMS permissions denied');
+      }
+    } catch (e) {
+      debugPrint('Error initializing SMS Service: $e');
+      _isInitialized = false;
+      _permissionsGranted = false;
     }
   }
 
   Future<void> _checkForNewMessages() async {
     try {
-      // This method could query for any messages received while the app was closed
-      // For now, we'll just log that we're checking
-      debugPrint('Checking for messages received while app was closed');
+      // Get all SMS messages from the device
+      final messages = await telephony.getInboxSms(
+        columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
+        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
+      );
+      
+      // Limit to most recent 50 messages for performance
+      final recentMessages = messages.length > 50 ? messages.sublist(0, 50) : messages;
+      debugPrint('Processing ${recentMessages.length} recent messages');
+      
+      // Process messages in reverse order (oldest first)
+      for (var sms in recentMessages.reversed) {
+        await _processMessage(
+          sms.address ?? '', 
+          sms.body ?? '', 
+          DateTime.fromMillisecondsSinceEpoch(sms.date ?? DateTime.now().millisecondsSinceEpoch)
+        );
+      }
     } catch (e) {
       debugPrint('Error checking for new messages: $e');
     }
   }
   
   Future<void> _onMessageReceived(SmsMessage message) async {
-    debugPrint('Received SMS from: ${message.address} with body: ${message.body?.substring(0, min(10, message.body?.length ?? 0))}...');
-    
-    if (message.address == null || message.body == null) {
-      debugPrint('Invalid message - missing address or body');
-      return;
-    }
+    await _processMessage(
+      message.address ?? '', 
+      message.body ?? '', 
+      DateTime.now()
+    );
+  }
+  
+  Future<void> _processMessage(String sender, String body, DateTime timestamp) async {
+    debugPrint('Processing SMS from: $sender with body: ${body.substring(0, min(10, body.length))}...');
     
     try {
-      List<Dcontacts> contacts = await db.getContacts();
-      debugPrint('Checking against ${contacts.length} contacts');
+      final normalizedSender = _normalizePhoneNumber(sender);
+      final contacts = await db.getContacts();
       
+      // Find matching contact
       Dcontacts? matchedContact;
-      
       for (var contact in contacts) {
-        String normalizedContactNumber = _normalizePhoneNumber(contact.number);
-        String normalizedSenderNumber = _normalizePhoneNumber(message.address!);
-        
-        debugPrint('Comparing contact: $normalizedContactNumber with sender: $normalizedSenderNumber');
-        
-        // Check if either number ends with the other, accounting for different formats
-        if (normalizedContactNumber.endsWith(normalizedSenderNumber) || 
-            normalizedSenderNumber.endsWith(normalizedContactNumber)) {
+        if (_isNumberMatch(_normalizePhoneNumber(contact.number), normalizedSender)) {
           matchedContact = contact;
-          debugPrint('Match found! Contact: ${contact.name}');
           break;
         }
       }
       
       if (matchedContact != null) {
-        debugPrint('Matched contact: ${matchedContact.name} (ID: ${matchedContact.id})');
-        
-        final now = DateTime.now();
-        final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+        final formattedTimestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(timestamp);
         
         final newMessage = Message(
           matchedContact.id,
-          message.body!,
-          timestamp,
+          body,
+          formattedTimestamp,
           false,
         );
         
+        // Save to database and notify listeners
         await db.insertMessage(newMessage);
-        debugPrint('Message saved to database with timestamp: $timestamp');
-        
-        // Broadcast the new message to all listeners
         _messageStreamController.add(newMessage);
-        debugPrint('Message broadcast to stream listeners');
+        
+        debugPrint('Message processed and saved for contact: ${matchedContact.name}');
       } else {
-        debugPrint('No matching contact found for number: ${message.address}');
+        debugPrint('No contact match found for sender: $sender');
       }
     } catch (e) {
-      debugPrint('Error processing incoming message: $e');
+      debugPrint('Error processing message: $e');
     }
+  }
+  
+  bool _isNumberMatch(String contactNumber, String senderNumber) {
+    // Check if either number ends with the other (accounting for different formats)
+    return contactNumber.endsWith(senderNumber) || 
+           senderNumber.endsWith(contactNumber);
   }
   
   String _normalizePhoneNumber(String phoneNumber) {
     // Remove all non-digit characters
     String digitsOnly = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
     
-    // Remove country code if present (assuming country codes are 1-3 digits)
-    // This is a simplified approach - a more robust solution would consider specific country codes
+    // Remove country code if present (keep last 10 digits)
     if (digitsOnly.length > 10) {
       return digitsOnly.substring(digitsOnly.length - 10);
     }
@@ -127,14 +145,21 @@ class SMSService {
     return digitsOnly;
   }
   
-  // Helper to get the minimum of two integers
-  int min(int a, int b) {
-    return a < b ? a : b;
+  Future<void> dispose() async {
+    await _messageStreamController.close();
+    _isInitialized = false;
   }
+
+  // Helper to get the minimum of two integers
+  static int min(int a, int b) => a < b ? a : b;
 }
 
 @pragma('vm:entry-point')
-void backgroundMessageHandler(SmsMessage message) async {
+Future<void> backgroundMessageHandler(SmsMessage message) async {
   debugPrint('Background message handler triggered');
-  await SMSService()._onMessageReceived(message);
+  await SMSService()._processMessage(
+    message.address ?? '', 
+    message.body ?? '', 
+    DateTime.now()
+  );
 }

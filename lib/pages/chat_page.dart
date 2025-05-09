@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
 import 'package:safe_pulse/model/message_model.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_sms/flutter_sms.dart'; 
+import 'package:flutter_sms/flutter_sms.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
-
-import 'package:safe_pulse/text/sms.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 class ChatPage extends StatefulWidget {
   final int contactId;
@@ -24,26 +25,29 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
+  StreamSubscription? _smsSubscription;
+  
   Dcontacts? _contact;
   List<Message> _messages = [];
   bool _isSendingMessage = false;
   bool _smsPermissionGranted = false;
-  StreamSubscription<Message>? _messageSubscription;
   bool _isPageActive = true;
+
+  bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeChat();
+    if (_isAndroid) {
+      _initSmsListener();
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Track when the app is in foreground or background
     _isPageActive = state == AppLifecycleState.resumed;
-    
-    // Refresh messages when app comes to foreground
     if (_isPageActive) {
       _loadMessages();
     }
@@ -53,27 +57,99 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     await _loadContact();
     await _loadMessages();
     await _checkPermissions();
-    await SMSService().initialize();
-    _setupMessageListener();
+  }
+
+  void _initSmsListener() {
+    _smsSubscription = EventChannel('sms_receiver')
+        .receiveBroadcastStream()
+        .listen((dynamic event) {
+          try {
+            final sms = event as Map<dynamic, dynamic>;
+            final sender = sms['sender'].toString();
+            final message = sms['message'].toString();
+            
+            if (_isFromCurrentContact(sender)) {
+              _addMessageToChat(message, false);
+              HapticFeedback.lightImpact();
+            }
+          } catch (e) {
+            print('Error processing SMS: $e');
+          }
+        }, onError: (error) {
+          print('SMS Receiver error: $error');
+          Fluttertoast.showToast(
+            msg: "SMS monitoring error",
+            backgroundColor: Colors.red,
+          );
+        });
+  }
+
+  bool _isFromCurrentContact(String sender) {
+    if (_contact == null) return false;
+    return _normalizeNumber(sender) == _normalizeNumber(_contact!.number);
+  }
+
+  String _normalizeNumber(String number) {
+    return number.replaceAll(RegExp(r'[^0-9+]'), '');
+  }
+
+  Future<void> _addMessageToChat(String content, bool isFromMe) async {
+    final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final message = Message(
+      widget.contactId,
+      content,
+      timestamp,
+      isFromMe,
+    );
+
+    await _db.insertMessage(message);
+
+    if (mounted) {
+      setState(() {
+        _messages.add(message);
+      });
+      _scrollToBottom();
+      
+      if (!isFromMe && !_isPageActive) {
+        Fluttertoast.showToast(
+          msg: "New message from ${_contact?.name}",
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          toastLength: Toast.LENGTH_LONG,
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
-    _messageSubscription?.cancel();
+    _smsSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _checkPermissions() async {
-    final status = await Permission.sms.status;
-    setState(() {
-      _smsPermissionGranted = status.isGranted;
-    });
-    if (!_smsPermissionGranted) {
-      final result = await Permission.sms.request();
+    if (_isAndroid) {
+      final status = await Permission.sms.status;
       setState(() {
-        _smsPermissionGranted = result.isGranted;
+        _smsPermissionGranted = status.isGranted;
       });
+      
+      if (!_smsPermissionGranted) {
+        final result = await Permission.sms.request();
+        setState(() {
+          _smsPermissionGranted = result.isGranted;
+        });
+        
+        if (!result.isGranted) {
+          Fluttertoast.showToast(
+            msg: "SMS permissions required for full functionality",
+            toastLength: Toast.LENGTH_LONG,
+          );
+        }
+      }
     }
   }
 
@@ -85,7 +161,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       });
     } catch (e) {
       Fluttertoast.showToast(msg: "Error loading contact: $e");
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -95,71 +173,36 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       setState(() {
         _messages = messages;
       });
-      _scrollToBottom();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } catch (e) {
       Fluttertoast.showToast(msg: "Error loading messages: $e");
     }
   }
 
-  void _setupMessageListener() {
-    _messageSubscription = SMSService().messageStream.listen((message) {
-      if (message.contactId == widget.contactId) {
-        print("New message received for current contact!");
-        _loadMessages();
-        
-        // Show a toast notification for received message
-        if (_isPageActive) {
-          Fluttertoast.showToast(
-            msg: "New message received",
-            backgroundColor: Colors.green,
-            textColor: Colors.white
-          );
-        }
-      }
-    });
-  }
-
   void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || _isSendingMessage) return;
+    final messageContent = _messageController.text.trim();
+    if (messageContent.isEmpty || _isSendingMessage) return;
     
     setState(() {
       _isSendingMessage = true;
     });
 
     try {
-      final now = DateTime.now();
-      final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-      final messageContent = _messageController.text;
+      await _addMessageToChat(messageContent, true);
       
-      final message = Message(
-        widget.contactId,
-        messageContent,
-        timestamp,
-        true,
-      );
-      
-      // Save to database first
-      await _db.insertMessage(message);
-      
-      // Then try to send via SMS
-      if (_contact != null) {
+      if (_isAndroid && _contact != null) {
         if (!_smsPermissionGranted) {
-          final status = await Permission.sms.request();
-          setState(() {
-            _smsPermissionGranted = status.isGranted;
-          });
+          await _checkPermissions();
         }
 
         if (_smsPermissionGranted) {
@@ -172,26 +215,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               toastLength: Toast.LENGTH_LONG,
             );
           }
-        } else {
-          Fluttertoast.showToast(
-            msg: "Message saved but SMS permission denied",
-            toastLength: Toast.LENGTH_LONG,
-          );
         }
       }
 
       _messageController.clear();
-      await _loadMessages();
-
     } catch (e) {
       Fluttertoast.showToast(
         msg: "Error: ${e.toString()}",
         toastLength: Toast.LENGTH_LONG,
       );
     } finally {
-      setState(() {
-        _isSendingMessage = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
     }
   }
 
@@ -258,10 +296,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       appBar: AppBar(
         title: Text(_contact?.name ?? "Chat"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadMessages,
-          ),
+          if (!_smsPermissionGranted && _isAndroid)
+            IconButton(
+              icon: const Icon(Icons.warning, color: Colors.orange),
+              onPressed: _checkPermissions,
+              tooltip: "SMS permissions required",
+            ),
         ],
       ),
       body: Column(
@@ -270,7 +310,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             child: _messages.isEmpty
                 ? const Center(
                     child: Text(
-                      "No messages yet.",
+                      "No messages yet",
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
@@ -307,10 +347,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
                 const SizedBox(width: 8),
                 CircleAvatar(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: _isSendingMessage ? Colors.grey : Colors.blue,
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
+                    icon: _isSendingMessage
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.send, color: Colors.white),
+                    onPressed: _isSendingMessage ? null : _sendMessage,
                   ),
                 ),
               ],

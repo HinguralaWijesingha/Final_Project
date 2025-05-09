@@ -45,11 +45,6 @@ class _ChatListPageState extends State<ChatListPage> {
       contactList = [];
     }
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Safe Pulse Chats'),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-      ),
       body: SafeArea(
         child: Container(
           padding: const EdgeInsets.all(20),
