@@ -19,7 +19,7 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final DB _db = DB();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -29,19 +29,38 @@ class _ChatPageState extends State<ChatPage> {
   bool _isSendingMessage = false;
   bool _smsPermissionGranted = false;
   StreamSubscription<Message>? _messageSubscription;
+  bool _isPageActive = true;
 
   @override
   void initState() {
     super.initState();
-    _loadContact();
-    _loadMessages();
-    _checkPermissions();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeChat();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Track when the app is in foreground or background
+    _isPageActive = state == AppLifecycleState.resumed;
+    
+    // Refresh messages when app comes to foreground
+    if (_isPageActive) {
+      _loadMessages();
+    }
+  }
+
+  Future<void> _initializeChat() async {
+    await _loadContact();
+    await _loadMessages();
+    await _checkPermissions();
+    await SMSService().initialize();
     _setupMessageListener();
   }
 
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -50,6 +69,12 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       _smsPermissionGranted = status.isGranted;
     });
+    if (!_smsPermissionGranted) {
+      final result = await Permission.sms.request();
+      setState(() {
+        _smsPermissionGranted = result.isGranted;
+      });
+    }
   }
 
   Future<void> _loadContact() async {
@@ -79,7 +104,17 @@ class _ChatPageState extends State<ChatPage> {
   void _setupMessageListener() {
     _messageSubscription = SMSService().messageStream.listen((message) {
       if (message.contactId == widget.contactId) {
+        print("New message received for current contact!");
         _loadMessages();
+        
+        // Show a toast notification for received message
+        if (_isPageActive) {
+          Fluttertoast.showToast(
+            msg: "New message received",
+            backgroundColor: Colors.green,
+            textColor: Colors.white
+          );
+        }
       }
     });
   }
@@ -87,7 +122,11 @@ class _ChatPageState extends State<ChatPage> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -110,8 +149,11 @@ class _ChatPageState extends State<ChatPage> {
         timestamp,
         true,
       );
+      
+      // Save to database first
       await _db.insertMessage(message);
-
+      
+      // Then try to send via SMS
       if (_contact != null) {
         if (!_smsPermissionGranted) {
           final status = await Permission.sms.request();
@@ -126,7 +168,7 @@ class _ChatPageState extends State<ChatPage> {
             Fluttertoast.showToast(msg: "Message sent");
           } catch (e) {
             Fluttertoast.showToast(
-              msg: "Message saved but couldn't send SMS: $e",
+              msg: "Message saved but couldn't send SMS",
               toastLength: Toast.LENGTH_LONG,
             );
           }
@@ -168,36 +210,42 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessageBubble(Message message) {
+    final isMe = message.isFromMe;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
       child: Align(
-        alignment: message.isFromMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: message.isFromMe ? Colors.blue : Colors.grey[300],
-            borderRadius: BorderRadius.circular(12),
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                message.content,
-                style: TextStyle(
-                  color: message.isFromMe ? Colors.white : Colors.black,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isMe ? Colors.blue : Colors.grey[300],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.content,
+                  style: TextStyle(
+                    color: isMe ? Colors.white : Colors.black,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                DateFormat('HH:mm').format(
-                  DateFormat('yyyy-MM-dd HH:mm:ss').parse(message.timestamp)
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('HH:mm').format(
+                    DateFormat('yyyy-MM-dd HH:mm:ss').parse(message.timestamp)
+                  ),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isMe ? Colors.white70 : Colors.grey[600],
+                  ),
                 ),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: message.isFromMe ? Colors.white70 : Colors.grey[600],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -211,7 +259,7 @@ class _ChatPageState extends State<ChatPage> {
         title: Text(_contact?.name ?? "Chat"),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh),
             onPressed: _loadMessages,
           ),
         ],
@@ -219,14 +267,21 @@ class _ChatPageState extends State<ChatPage> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _messages.length,
-              padding: const EdgeInsets.all(8),
-              itemBuilder: (context, index) {
-                return _buildMessageBubble(_messages[index]);
-              },
-            ),
+            child: _messages.isEmpty
+                ? const Center(
+                    child: Text(
+                      "No messages yet.",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _messages.length,
+                    padding: const EdgeInsets.all(8),
+                    itemBuilder: (context, index) {
+                      return _buildMessageBubble(_messages[index]);
+                    },
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
