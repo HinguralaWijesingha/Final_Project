@@ -6,6 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.telephony.SmsMessage
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -14,9 +18,14 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val SMS_CHANNEL = "sms_receiver"
-    private val SMS_EVENT_CHANNEL = "sms_receiver/events"
-    private val SMS_PERMISSION_CODE = 101
+    // Channel constants
+    private companion object {
+        const val SMS_CHANNEL = "sms_receiver"
+        const val SMS_EVENT_CHANNEL = "sms_receiver/events"
+        const val SMS_PERMISSION_CODE = 101
+        const val TAG = "SafePulseSMS"
+    }
+
     private var smsReceiver: BroadcastReceiver? = null
     private var eventSink: EventChannel.EventSink? = null
 
@@ -33,14 +42,16 @@ class MainActivity : FlutterActivity() {
         }
 
         // Event Channel for receiving SMS
-        EventChannel(flutterEngine.dartExecutor, SMS_EVENT_CHANNEL).setStreamHandler(
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_EVENT_CHANNEL).setStreamHandler(
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                    Log.d(TAG, "EventChannel listener attached")
                     eventSink = events
                     setupSmsReceiver()
                 }
 
                 override fun onCancel(arguments: Any?) {
+                    Log.d(TAG, "EventChannel listener detached")
                     eventSink = null
                     unregisterSmsReceiver()
                 }
@@ -49,27 +60,118 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun setupSmsReceiver() {
+        unregisterSmsReceiver()
+        
         smsReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val sender = intent.getStringExtra("sender")
-                val message = intent.getStringExtra("message")
-                val timestamp = intent.getLongExtra("timestamp", 0L)
+                Log.d(TAG, "Broadcast received: ${intent.action}")
+                
+                when (intent.action) {
+                    "android.provider.Telephony.SMS_RECEIVED" -> {
+                        processSystemSms(intent.extras)
+                    }
+                    "sms-received" -> {
+                        processCustomSms(intent)
+                    }
+                }
+            }
 
-                eventSink?.success(mapOf(
-                    "sender" to sender,
-                    "message" to message,
-                    "timestamp" to timestamp
-                ))
+            private fun processSystemSms(bundle: Bundle?) {
+                bundle ?: run {
+                    Log.w(TAG, "Null bundle received in SMS intent")
+                    return
+                }
+
+                try {
+                    val pdus = getPdusFromBundle(bundle)
+                    val format = bundle.getString("format")
+                    
+                    pdus.forEach { pdu ->
+                        try {
+                            createSmsMessage(pdu, format)?.let { message ->
+                                forwardSmsToFlutter(
+                                    sender = message.originatingAddress ?: "unknown",
+                                    message = message.messageBody ?: "no content"
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing individual PDU", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing SMS bundle", e)
+                }
+            }
+
+            private fun getPdusFromBundle(bundle: Bundle): Array<ByteArray> {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    bundle.getParcelableArray("pdus", ByteArray::class.java)
+                        ?.filterIsInstance<ByteArray>()
+                        ?.toTypedArray()
+                        ?: emptyArray()
+                } else {
+                    @Suppress("DEPRECATION")
+                    (bundle.get("pdus") as? Array<*>)?.filterIsInstance<ByteArray>()?.toTypedArray()
+                        ?: emptyArray()
+                }
+            }
+
+            private fun createSmsMessage(pdu: ByteArray, format: String?): SmsMessage? {
+                return try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        SmsMessage.createFromPdu(pdu, format)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        SmsMessage.createFromPdu(pdu)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error creating SmsMessage from PDU", e)
+                    null
+                }
+            }
+
+            private fun processCustomSms(intent: Intent) {
+                forwardSmsToFlutter(
+                    sender = intent.getStringExtra("sender") ?: "unknown",
+                    message = intent.getStringExtra("message") ?: "no content"
+                )
             }
         }
 
-        registerReceiver(smsReceiver, IntentFilter("android.provider.Telephony.SMS_RECEIVED"))
+        val filter = IntentFilter().apply {
+            addAction("android.provider.Telephony.SMS_RECEIVED")
+            addAction("sms-received")
+            priority = 999 // High priority for SMS reception
+        }
+        
+        try {
+            registerReceiver(smsReceiver, filter)
+            Log.d(TAG, "SMS receiver registered successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register SMS receiver", e)
+        }
+    }
+
+    private fun forwardSmsToFlutter(sender: String, message: String) {
+        Log.d(TAG, "Forwarding SMS to Flutter - Sender: $sender")
+        eventSink?.success(
+            mapOf(
+                "sender" to sender,
+                "message" to message,
+                "timestamp" to System.currentTimeMillis()
+            )
+        ) ?: Log.w(TAG, "EventSink is null - message not delivered")
     }
 
     private fun unregisterSmsReceiver() {
-        smsReceiver?.let {
-            unregisterReceiver(it)
-            smsReceiver = null
+        try {
+            smsReceiver?.let {
+                unregisterReceiver(it)
+                smsReceiver = null
+                Log.d(TAG, "SMS receiver unregistered successfully")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to unregister SMS receiver", e)
         }
     }
 
@@ -86,8 +188,7 @@ class MainActivity : FlutterActivity() {
         }
 
         ActivityCompat.requestPermissions(this, permissions, SMS_PERMISSION_CODE)
-        // The permission result will be handled in onRequestPermissionsResult
-        // Flutter side should listen for the actual permission status changes
+        // Note: Flutter side should listen for onRequestPermissionsResult
     }
 
     private fun hasSmsPermissions(): Boolean {
@@ -109,8 +210,8 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         
         if (requestCode == SMS_PERMISSION_CODE) {
-            // You can add logic here to notify Flutter about permission changes
-            // For example through another method channel call
+            Log.d(TAG, "SMS permission request completed")
+            // You can add additional handling here if needed
         }
     }
 }

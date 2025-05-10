@@ -60,37 +60,74 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _initSmsListener() {
+    debugPrint("Initializing SMS listener with enhanced handling");
+    
     _smsSubscription = EventChannel('sms_receiver/events')
         .receiveBroadcastStream()
+        .handleError((error, stackTrace) {
+          debugPrint("SMS Stream error: $error\n$stackTrace");
+          Fluttertoast.showToast(msg: "SMS monitoring error");
+        })
         .listen((dynamic event) {
           try {
-            final sms = event as Map<dynamic, dynamic>;
-            final sender = sms['sender'].toString();
-            final message = sms['message'].toString();
+            debugPrint("Raw SMS event: ${event.toString()}");
             
-            if (_isFromCurrentContact(sender)) {
+            final sms = event as Map<dynamic, dynamic>;
+            final sender = sms['sender'].toString().trim();
+            final message = sms['message'].toString().trim();
+            
+            debugPrint("Processing SMS from '$sender': '$message'");
+            
+            if (sender.isEmpty || message.isEmpty) {
+              debugPrint("Invalid SMS data - skipping");
+              return;
+            }
+
+            // Normalize numbers for comparison
+            final normalizedSender = _normalizeNumber(sender);
+            final normalizedContact = _contact != null ? _normalizeNumber(_contact!.number) : '';
+            
+            debugPrint("Comparing: $normalizedSender vs $normalizedContact");
+            
+            if (normalizedContact.isNotEmpty && 
+                (normalizedSender.endsWith(normalizedContact) || 
+                 normalizedContact.endsWith(normalizedSender))) {
+              debugPrint("Message matches current contact - adding to chat");
               _addMessageToChat(message, false);
+              if (mounted) setState(() {});
               HapticFeedback.lightImpact();
+            } else {
+              debugPrint("Message doesn't match current contact");
             }
           } catch (e) {
-            print('Error processing SMS: $e');
+            debugPrint("Error processing SMS: $e");
           }
-        }, onError: (error) {
-          print('SMS Receiver error: $error');
-          Fluttertoast.showToast(
-            msg: "SMS monitoring error",
-            backgroundColor: Colors.red,
-          );
         });
-  }
 
-  bool _isFromCurrentContact(String sender) {
-    if (_contact == null) return false;
-    return _normalizeNumber(sender) == _normalizeNumber(_contact!.number);
+    // Also check for any recent messages that might have been missed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForRecentMessages();
+    });
   }
 
   String _normalizeNumber(String number) {
-    return number.replaceAll(RegExp(r'[^0-9+]'), '');
+    // Remove all non-digit characters except +
+    return number.replaceAll(RegExp(r'[^\d+]'), '');
+  }
+
+  Future<void> _checkForRecentMessages() async {
+    debugPrint("Checking for recent messages");
+    try {
+      final messages = await _db.getMessagesForContact(widget.contactId);
+      if (mounted) {
+        setState(() {
+          _messages = messages;
+        });
+      }
+      debugPrint("Loaded ${messages.length} messages from DB");
+    } catch (e) {
+      debugPrint("Error loading messages: $e");
+    }
   }
 
   Future<void> _addMessageToChat(String content, bool isFromMe) async {
@@ -240,9 +277,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         recipients: recipients,
         sendDirect: true,
       );
-      print("SMS Result: $result");
+      debugPrint("SMS Result: $result");
     } catch (error) {
-      print("Error sending SMS: $error");
+      debugPrint("Error sending SMS: $error");
       throw error;
     }
   }
