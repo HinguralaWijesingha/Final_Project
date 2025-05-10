@@ -1,4 +1,4 @@
-package io.flutter.plugins.com.safe_pulse;
+package io.flutter.plugins.com.example.safe_pulse;
 
 import android.app.Notification;
 import android.app.NotificationChannel;

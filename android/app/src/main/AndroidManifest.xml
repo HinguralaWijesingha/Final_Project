@@ -63,8 +63,9 @@
                 android:permission="android.permission.BROADCAST_SMS">
                 <intent-filter android:priority="999">
                     <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+                    <action android:name="com.example.safe_pulse.SMS_RECEIVED" />
                 </intent-filter>
-        </receiver>
+            </receiver>
 
                 <service
             android:name=".SmsService"
@@ -83,7 +84,6 @@
                     <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
                 </intent-filter>
             </receiver>
-
 
 
     </application>

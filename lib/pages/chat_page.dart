@@ -60,7 +60,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _initSmsListener() {
-    _smsSubscription = EventChannel('sms_receiver')
+    _smsSubscription = EventChannel('sms_receiver/events')
         .receiveBroadcastStream()
         .listen((dynamic event) {
           try {
