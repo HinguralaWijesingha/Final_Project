@@ -4,11 +4,11 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter_sms/flutter_sms.dart';
 import 'package:safe_pulse/db/db.dart';
 import 'package:safe_pulse/model/contactdb.dart';
-import 'package:workmanager/workmanager.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:logger/logger.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class BatteryMonitorPage extends StatefulWidget {
   const BatteryMonitorPage({super.key});
@@ -51,9 +51,23 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   }
 
   Future<void> _requestPermissions() async {
-    await Permission.sms.request();
-    await Permission.notification.request();
-    await Permission.ignoreBatteryOptimizations.request();
+    // Request SMS permission
+    if (!await Permission.sms.status.isGranted) {
+      await Permission.sms.request();
+    }
+
+    // Request notification permission
+    if (!await Permission.notification.status.isGranted) {
+      await Permission.notification.request();
+    }
+
+    // Request to ignore battery optimizations
+    if (await Permission.ignoreBatteryOptimizations.isDenied) {
+      await Permission.ignoreBatteryOptimizations.request();
+      if (await Permission.ignoreBatteryOptimizations.isPermanentlyDenied) {
+        await openAppSettings();
+      }
+    }
   }
 
   Future<void> _showNotification(String title, String body) async {
@@ -64,6 +78,9 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: false,
+      ongoing: false,
+      channelShowBadge: true,
+      enableVibration: true,
     );
     
     const NotificationDetails platformChannelSpecifics =
@@ -81,39 +98,51 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   void dispose() {
     _isDisposed = true;
     _batteryStateSubscription?.cancel();
-    Workmanager().cancelByTag("batteryCheckTask");
     AndroidAlarmManager.cancel(0);
     super.dispose();
   }
 
   Future<void> _loadEmergencyContacts() async {
-    List<Dcontacts> contacts = await _db.getContacts();
-    if (!mounted) return;
-    setState(() {
-      _emergencyContacts = contacts;
-    });
+    try {
+      List<Dcontacts> contacts = await _db.getContacts();
+      if (!mounted) return;
+      setState(() {
+        _emergencyContacts = contacts;
+      });
+    } catch (e) {
+      _logger.e("Failed to load contacts", error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load emergency contacts')),
+        );
+      }
+    }
   }
 
   Future<void> _initBatteryMonitoring() async {
-    _batteryLevel = await _battery.batteryLevel;
-    
-    _batteryStateSubscription = _battery.onBatteryStateChanged.listen((BatteryState state) async {
-      final currentLevel = await _battery.batteryLevel;
-      _safeSetState(() {
-        _batteryLevel = currentLevel;
-      });
+    try {
+      _batteryLevel = await _battery.batteryLevel;
       
-      if (state == BatteryState.discharging) {
-        _startBatteryMonitoring();
-      } else {
+      _batteryStateSubscription = _battery.onBatteryStateChanged.listen((BatteryState state) async {
+        final currentLevel = await _battery.batteryLevel;
         _safeSetState(() {
-          _alertSent = false;
+          _batteryLevel = currentLevel;
         });
-      }
-      _checkBatteryLevel(currentLevel);
-    });
+        
+        if (state == BatteryState.discharging) {
+          _startBatteryMonitoring();
+        } else {
+          _safeSetState(() {
+            _alertSent = false;
+          });
+        }
+        _checkBatteryLevel(currentLevel);
+      });
 
-    _startPeriodicBatteryCheck();
+      _startPeriodicBatteryCheck();
+    } catch (e) {
+      _logger.e("Battery monitoring initialization failed", error: e);
+    }
   }
 
   void _startPeriodicBatteryCheck() {
@@ -165,7 +194,6 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
 
       List<String> recipients = _emergencyContacts.map((contact) => contact.number).toList();
 
-      // Send SMS without capturing unused result
       await sendSMS(
         message: message,
         recipients: recipients,
@@ -192,98 +220,102 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   }
 
   Future<void> _initBackgroundTask() async {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: false,
-    );
-
-    await Workmanager().registerPeriodicTask(
-      "batteryCheckTask",
-      "batteryCheckTask",
-      frequency: const Duration(minutes: 15),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-        requiresBatteryNotLow: false,
-        requiresStorageNotLow: false,
-      ),
-      initialDelay: const Duration(seconds: 10),
-    );
-
-    await AndroidAlarmManager.initialize();
-    await AndroidAlarmManager.periodic(
-      const Duration(minutes: 15),
-      0,
-      _checkBatteryInBackground,
-      exact: true,
-      wakeup: true,
-      rescheduleOnReboot: true,
-    );
-  }
-
-  @pragma('vm:entry-point')
-  static Future<void> _checkBatteryInBackground() async {
-    final logger = Logger();
-    final battery = Battery();
-    final level = await battery.batteryLevel;
-    final state = await battery.batteryState;
-
-    if (state == BatteryState.discharging && level <= 50) {
-      final db = DB();
-      final contacts = await db.getContacts();
-      if (contacts.isNotEmpty) {
-        final recipients = contacts.map((c) => c.number).toList();
-        final message = "Emergency: My phone battery is critically low ($level%). "
-            "I may not be able to respond soon. Please check on me if you don't hear from me.";
-        
-        try {
-          // Initialize notifications in background
-          final FlutterLocalNotificationsPlugin notifications = FlutterLocalNotificationsPlugin();
-          const AndroidInitializationSettings initializationSettingsAndroid =
-              AndroidInitializationSettings('@mipmap/ic_launcher');
-          const InitializationSettings initializationSettings =
-              InitializationSettings(android: initializationSettingsAndroid);
-          await notifications.initialize(initializationSettings);
-
-          // Send SMS without capturing unused result
-          await sendSMS(
-            message: message,
-            recipients: recipients,
-            sendDirect: true,
-          );
-
-          // Show notification
-          const AndroidNotificationDetails androidPlatformChannelSpecifics =
-              AndroidNotificationDetails(
-            'battery_channel',
-            'Battery Alerts',
-            importance: Importance.high,
-            priority: Priority.high,
-            showWhen: false,
-          );
-          const NotificationDetails platformChannelSpecifics =
-              NotificationDetails(android: androidPlatformChannelSpecifics);
-          
-          await notifications.show(
-            1,
-            'Emergency Alert Sent',
-            'Low battery notification sent to your contacts',
-            platformChannelSpecifics,
-          );
-
-          logger.i("Background alert sent successfully");
-        } catch (e) {
-          logger.e("Failed to send SMS in background", error: e);
-        }
+    try {
+      // Initialize AndroidAlarmManager
+      await AndroidAlarmManager.initialize();
+      
+      // Cancel any existing alarms
+      await AndroidAlarmManager.cancel(0);
+      
+      // Register the periodic task
+      await AndroidAlarmManager.periodic(
+        const Duration(minutes: 5), // More frequent checks
+        0, // Unique ID
+        _checkBatteryInBackground,
+        exact: true,
+        wakeup: true,
+        rescheduleOnReboot: true,
+        allowWhileIdle: true, // Important for Doze mode
+      );
+      
+      _logger.i("Background task initialized successfully");
+    } catch (e) {
+      _logger.e("Failed to initialize background task", error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to setup background monitoring')),
+        );
       }
     }
   }
 
   @pragma('vm:entry-point')
-  static void callbackDispatcher() {
-    Workmanager().executeTask((task, inputData) async {
-      await _checkBatteryInBackground();
-      return Future.value(true);
-    });
+  static Future<void> _checkBatteryInBackground() async {
+    final logger = Logger();
+    try {
+      // Acquire wake lock to keep device awake during task
+      await WakelockPlus.enable();
+      
+      final battery = Battery();
+      final level = await battery.batteryLevel;
+      final state = await battery.batteryState;
+
+      logger.i("Background check - Battery level: $level%, State: $state");
+
+      if (state == BatteryState.discharging && level <= 50) {
+        final db = DB();
+        final contacts = await db.getContacts();
+        
+        if (contacts.isNotEmpty) {
+          final recipients = contacts.map((c) => c.number).toList();
+          final message = "Emergency: My phone battery is critically low ($level%). "
+              "I may not be able to respond soon. Please check on me if you don't hear from me.";
+          
+          try {
+            // Initialize notifications
+            final FlutterLocalNotificationsPlugin notifications = FlutterLocalNotificationsPlugin();
+            const AndroidInitializationSettings initializationSettingsAndroid =
+                AndroidInitializationSettings('@mipmap/ic_launcher');
+            const InitializationSettings initializationSettings =
+                InitializationSettings(android: initializationSettingsAndroid);
+            await notifications.initialize(initializationSettings);
+
+            // Send SMS
+            await sendSMS(
+              message: message,
+              recipients: recipients,
+              sendDirect: true,
+            );
+
+            // Show notification
+            const AndroidNotificationDetails androidPlatformChannelSpecifics =
+                AndroidNotificationDetails(
+              'battery_channel',
+              'Battery Alerts',
+              importance: Importance.high,
+              priority: Priority.high,
+              showWhen: false,
+            );
+            
+            await notifications.show(
+              1,
+              'Emergency Alert Sent',
+              'Low battery notification sent to your contacts',
+              NotificationDetails(android: androidPlatformChannelSpecifics),
+            );
+
+            logger.i("Background alert sent successfully");
+          } catch (e) {
+            logger.e("Failed to send SMS in background", error: e);
+          }
+        }
+      }
+    } catch (e) {
+      logger.e("Error in background task", error: e);
+    } finally {
+      // Release wake lock
+      await WakelockPlus.disable();
+    }
   }
 
   @override
@@ -303,8 +335,8 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              openAppSettings();
+            onPressed: () async {
+              await openAppSettings();
             },
           ),
         ],
@@ -368,6 +400,11 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
                 foregroundColor: Colors.white,
               ),
               child: const Text('Send Test Alert'),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Background monitoring is ${_isMonitoring ? 'active' : 'inactive'}',
+              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
             ),
           ],
         ),
