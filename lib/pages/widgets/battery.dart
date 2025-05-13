@@ -9,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:logger/logger.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BatteryMonitorPage extends StatefulWidget {
   const BatteryMonitorPage({super.key});
@@ -28,6 +29,11 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   StreamSubscription<BatteryState>? _batteryStateSubscription;
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   final Logger _logger = Logger();
+  
+  // New variables for auto-sending
+  int _thresholdLevel = 50; // Default threshold
+  Timer? _autoSendTimer;
+  bool _autoSendEnabled = true;
 
   @override
   void initState() {
@@ -35,8 +41,49 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
     _initNotifications();
     _requestPermissions().then((_) {
       _loadEmergencyContacts();
+      _loadSettings();
       _initBatteryMonitoring();
       _initBackgroundTask();
+      _startAutoSendTimer(); // Start the timer for auto-sending
+    });
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _safeSetState(() {
+        _thresholdLevel = prefs.getInt('thresholdLevel') ?? 50;
+        _autoSendEnabled = prefs.getBool('autoSendEnabled') ?? true;
+      });
+    } catch (e) {
+      _logger.e("Failed to load settings", error: e);
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('thresholdLevel', _thresholdLevel);
+      await prefs.setBool('autoSendEnabled', _autoSendEnabled);
+    } catch (e) {
+      _logger.e("Failed to save settings", error: e);
+    }
+  }
+
+  void _startAutoSendTimer() {
+    // Cancel existing timer if any
+    _autoSendTimer?.cancel();
+    
+    // Create a new timer that checks battery level more frequently
+    _autoSendTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (_isDisposed || !_autoSendEnabled) return;
+      
+      _battery.batteryLevel.then((level) {
+        _safeSetState(() {
+          _batteryLevel = level;
+        });
+        _checkBatteryLevel(level);
+      });
     });
   }
 
@@ -98,6 +145,7 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   void dispose() {
     _isDisposed = true;
     _batteryStateSubscription?.cancel();
+    _autoSendTimer?.cancel();
     AndroidAlarmManager.cancel(0);
     super.dispose();
   }
@@ -139,29 +187,11 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
         _checkBatteryLevel(currentLevel);
       });
 
-      _startPeriodicBatteryCheck();
+      // Immediate check on initialization
+      _checkBatteryLevel(_batteryLevel);
     } catch (e) {
       _logger.e("Battery monitoring initialization failed", error: e);
     }
-  }
-
-  void _startPeriodicBatteryCheck() {
-    if (_isDisposed) return;
-    
-    Future.delayed(const Duration(minutes: 1), () {
-      if (_isDisposed) return;
-      
-      _battery.batteryLevel.then((level) {
-        _safeSetState(() {
-          _batteryLevel = level;
-        });
-        _checkBatteryLevel(level);
-      });
-      
-      if (_isMonitoring) {
-        _startPeriodicBatteryCheck();
-      }
-    });
   }
 
   void _startBatteryMonitoring() {
@@ -169,7 +199,6 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
       _isMonitoring = true;
     });
     _checkBatteryLevel(_batteryLevel);
-    _startPeriodicBatteryCheck();
   }
 
   void _safeSetState(VoidCallback fn) {
@@ -179,10 +208,20 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   }
 
   Future<void> _checkBatteryLevel(int level) async {
-    if (level <= 50 && !_alertSent && _isMonitoring && _emergencyContacts.isNotEmpty) {
+    if (_autoSendEnabled && level <= _thresholdLevel && !_alertSent && _emergencyContacts.isNotEmpty) {
       await _sendLowBatteryAlert();
       _safeSetState(() {
         _alertSent = true;
+      });
+      
+      // Reset the alert sent flag after some time to allow for another alert
+      // if the battery continues to drain
+      Future.delayed(const Duration(hours: 1), () {
+        if (!_isDisposed) {
+          _safeSetState(() {
+            _alertSent = false;
+          });
+        }
       });
     }
   }
@@ -253,6 +292,16 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   static Future<void> _checkBatteryInBackground() async {
     final logger = Logger();
     try {
+      // Get shared preferences to access settings
+      final prefs = await SharedPreferences.getInstance();
+      final thresholdLevel = prefs.getInt('thresholdLevel') ?? 50;
+      final autoSendEnabled = prefs.getBool('autoSendEnabled') ?? true;
+      
+      if (!autoSendEnabled) {
+        logger.i("Auto-send is disabled. Skipping background check.");
+        return;
+      }
+      
       // Acquire wake lock to keep device awake during task
       await WakelockPlus.enable();
       
@@ -262,7 +311,7 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
 
       logger.i("Background check - Battery level: $level%, State: $state");
 
-      if (state == BatteryState.discharging && level <= 50) {
+      if (state == BatteryState.discharging && level <= thresholdLevel) {
         final db = DB();
         final contacts = await db.getContacts();
         
@@ -301,15 +350,33 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
               1,
               'Emergency Alert Sent',
               'Low battery notification sent to your contacts',
-              NotificationDetails(android: androidPlatformChannelSpecifics),
+              const NotificationDetails(android: androidPlatformChannelSpecifics),
             );
 
             logger.i("Background alert sent successfully");
+            
+            // Mark as sent in shared preferences to prevent duplicate sends
+            await prefs.setBool('alertSent', true);
+            
+            // Schedule reset of the alertSent flag after 1 hour
+            final now = DateTime.now();
+            await prefs.setInt('resetAlertTime', now.add(const Duration(hours: 1)).millisecondsSinceEpoch);
+            
           } catch (e) {
             logger.e("Failed to send SMS in background", error: e);
           }
         }
       }
+      
+      // Check if we need to reset the alert sent flag
+      final resetTime = prefs.getInt('resetAlertTime') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (resetTime > 0 && now > resetTime) {
+        await prefs.setBool('alertSent', false);
+        await prefs.setInt('resetAlertTime', 0);
+        logger.i("Reset alert sent flag");
+      }
+      
     } catch (e) {
       logger.e("Error in background task", error: e);
     } finally {
@@ -335,9 +402,7 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () async {
-              await openAppSettings();
-            },
+            onPressed: () => _showSettingsDialog(),
           ),
         ],
       ),
@@ -351,6 +416,84 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
             _buildEmergencyContactsList(),
           ],
         ),
+      ),
+    );
+  }
+
+  // Settings dialog for configurability
+  Future<void> _showSettingsDialog() async {
+    int tempThreshold = _thresholdLevel;
+    bool tempAutoSend = _autoSendEnabled;
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Battery Monitor Settings'),
+        content: StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('Auto-send Messages'),
+                  subtitle: const Text('Automatically send SMS when battery is low'),
+                  value: tempAutoSend,
+                  onChanged: (value) {
+                    setState(() {
+                      tempAutoSend = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Text('Battery Threshold: '),
+                    Expanded(
+                      child: Slider(
+                        value: tempThreshold.toDouble(),
+                        min: 5,
+                        max: 75,
+                        divisions: 14,
+                        label: '$tempThreshold%',
+                        onChanged: (value) {
+                          setState(() {
+                            tempThreshold = value.round();
+                          });
+                        },
+                      ),
+                    ),
+                    Text('$tempThreshold%'),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () {
+              _safeSetState(() {
+                _thresholdLevel = tempThreshold;
+                _autoSendEnabled = tempAutoSend;
+              });
+              _saveSettings();
+              
+              // Restart the auto-send timer with new settings
+              if (_autoSendEnabled) {
+                _startAutoSendTimer();
+              } else {
+                _autoSendTimer?.cancel();
+              }
+              
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -385,9 +528,9 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
             Text(
               _alertSent 
                 ? 'Low battery alert has been sent to your emergency contacts'
-                : _isMonitoring
-                  ? 'Monitoring battery level. Alert will be sent if battery drops below 50%'
-                  : 'Monitoring paused (device is charging)',
+                : _autoSendEnabled
+                  ? 'Auto-send enabled. Alert will be sent when battery drops below $_thresholdLevel%'
+                  : 'Auto-send disabled. Enable in settings to send alerts automatically',
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 10),
@@ -403,7 +546,7 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
             ),
             const SizedBox(height: 10),
             Text(
-              'Background monitoring is ${_isMonitoring ? 'active' : 'inactive'}',
+              'Background monitoring is ${_isMonitoring ? 'active' : 'inactive'} (${_autoSendEnabled ? 'Auto-send ON' : 'Auto-send OFF'})',
               style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
             ),
           ],
