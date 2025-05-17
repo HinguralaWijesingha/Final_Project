@@ -50,7 +50,7 @@ class PoliceContact extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                          Text(
-                          "Emergency Stiuation",
+                          "Contact Police",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: MediaQuery.of(context).size.width * 0.06,
