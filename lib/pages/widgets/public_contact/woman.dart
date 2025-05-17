@@ -50,7 +50,7 @@ class WomanMinistry extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                          Text(
-                          "Contact Woman Ministery",
+                          "Contact Ministery",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: MediaQuery.of(context).size.width * 0.06,
