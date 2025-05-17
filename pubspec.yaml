@@ -71,6 +71,7 @@ dependencies:
   logging: ^1.1.0
   logger: ^2.5.0
   wakelock_plus: ^1.0.0
+  flutter_fgbg: ^0.2.2
 
 
 dev_dependencies:

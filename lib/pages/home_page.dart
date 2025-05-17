@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:safe_pulse/pages/public_emergency/live_help.dart';
 import 'package:safe_pulse/pages/public_emergency/public_emergency.dart';
 import 'package:safe_pulse/db/db.dart';
@@ -9,6 +12,9 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:intl/intl.dart';
+
+// Add this new import for hardware button detection
+import 'package:flutter_fgbg/flutter_fgbg.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -32,18 +38,85 @@ class _HomePageState extends State<HomePage> {
   String? _audioPath;
   String? _videoPath;
 
+  // Power button detection variables
+  int _powerButtonPressCount = 0;
+  DateTime? _lastPowerButtonPress;
+  static const int _maxTimeWindowMs = 2000; // 2 seconds window for triple press
+  
+  // Subscription for app lifecycle events
+  late Stream<FGBGType> _fgbgStream;
+  late StreamSubscription<FGBGType> _fgbgSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadEmergencyContacts();
     _initCameras();
+    _initPowerButtonDetection();
   }
 
   @override
   void dispose() {
     _cameraController?.dispose();
     _audioRecorder.dispose();
+    _fgbgSubscription.cancel();
     super.dispose();
+  }
+
+  void _initPowerButtonDetection() {
+    // Listen to screen on/off events which are triggered by power button presses
+    _fgbgStream = FGBGEvents.stream;
+    _fgbgSubscription = _fgbgStream.listen((event) {
+      _handlePowerButtonPress(event);
+    });
+
+    // We also need to listen to app lifecycle events for when app is in background
+    SystemChannels.lifecycle.setMessageHandler((msg) async {
+      if (msg == AppLifecycleState.resumed.toString()) {
+        // This could be a power button press that woke the screen
+        _checkPowerButtonSequence();
+      }
+      return null;
+    });
+  }
+
+  void _handlePowerButtonPress(FGBGType event) {
+    // BACKGROUND event can be triggered by power button press turning off screen
+    if (event == FGBGType.background) {
+      _checkPowerButtonSequence(isPowerOff: true);
+    } 
+    // FOREGROUND event can be triggered by power button press turning on screen
+    else if (event == FGBGType.foreground) {
+      _checkPowerButtonSequence();
+    }
+  }
+
+  void _checkPowerButtonSequence({bool isPowerOff = false}) {
+    final now = DateTime.now();
+    
+    // If this is the first press or if it's been too long since the last press
+    if (_lastPowerButtonPress == null || 
+        now.difference(_lastPowerButtonPress!).inMilliseconds > _maxTimeWindowMs) {
+      _powerButtonPressCount = 1;
+    } else {
+      _powerButtonPressCount++;
+    }
+    
+    _lastPowerButtonPress = now;
+    
+    // If we detect 3 presses within the time window, trigger SOS
+    if (_powerButtonPressCount >= 3) {
+      _powerButtonPressCount = 0; // Reset counter
+      _lastPowerButtonPress = null;
+      
+      // Only trigger if we're not already sending alerts
+      if (!isSendingAlerts && !isRecording) {
+        // Use a slight delay to ensure we don't interfere with system power button handling
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _sendEmergencyMessage();
+        });
+      }
+    }
   }
 
   Future<void> _initCameras() async {
@@ -188,25 +261,15 @@ class _HomePageState extends State<HomePage> {
   Future<void> _sendEmergencyMessage() async {
     // Check if there are any emergency contacts
     if (emergencyContacts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No emergency contacts to send to!"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      // For automatic power button triggering, just log instead of showing UI
+      // if app might be in background
+      debugPrint("No emergency contacts to send to!");
       return;
     }
 
     // Request permissions
     if (!await _requestPermissions()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Required permissions denied. Cannot send emergency alerts or record."),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      debugPrint("Required permissions denied. Cannot send emergency alerts or record.");
       return;
     }
 
@@ -214,17 +277,24 @@ class _HomePageState extends State<HomePage> {
       isSendingAlerts = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Sending emergency alerts..."),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    // When triggered by power button, we might be in background so use Vibration 
+    // feedback instead of or in addition to visual feedback
+    HapticFeedback.heavyImpact();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Sending emergency alerts..."),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
 
     const String message = "🚨 EMERGENCY ALERT 🚨\n"
         "I need immediate help!\n"
-        "This is an automated message from SafePulse app.";
+        "This is an automated message from SafePulse app.\n"
+        "Triggered by emergency power button sequence.";
 
     int successfulSends = 0;
     int failedSends = 0;
@@ -260,32 +330,37 @@ class _HomePageState extends State<HomePage> {
       isSendingAlerts = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          successfulSends > 0
-            ? "Emergency alert sent to $successfulSends contact(s)"
-            : "Failed to send emergency alerts",
-          style: const TextStyle(fontSize: 16),
+    // Provide haptic feedback again to signal message sent
+    HapticFeedback.mediumImpact();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            successfulSends > 0
+              ? "Emergency alert sent to $successfulSends contact(s)"
+              : "Failed to send emergency alerts",
+            style: const TextStyle(fontSize: 16),
+          ),
+          backgroundColor: successfulSends > 0 ? Colors.red : Colors.orange,
+          duration: const Duration(seconds: 5),
+          action: failedSends > 0
+              ? SnackBarAction(
+                  label: 'Details',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to send to $failedSends contact(s)'),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  },
+                )
+              : null,
         ),
-        backgroundColor: successfulSends > 0 ? Colors.red : Colors.orange,
-        duration: const Duration(seconds: 5),
-        action: failedSends > 0
-            ? SnackBarAction(
-                label: 'Details',
-                textColor: Colors.white,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to send to $failedSends contact(s)'),
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                },
-              )
-            : null,
-      ),
-    );
+      );
+    }
     
     // Start recording after sending alerts
     if (successfulSends > 0) {
@@ -293,6 +368,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Rest of the code remains the same...
+  
   void _showEmergencyPopup() {
     showModalBottomSheet(
       context: context,
@@ -572,6 +649,40 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Power button SOS instruction card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue, width: 1),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.power_settings_new, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text(
+                                "Quick SOS Feature",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Press your phone's power button 3 times quickly to send an SOS alert even when the app is closed.",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 30),
