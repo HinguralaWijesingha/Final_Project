@@ -10,18 +10,22 @@ import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsMessage
 import android.util.Log
+import androidx.annotation.NonNull
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : FlutterActivity() {
     // Channel constants
     private companion object {
         const val SMS_CHANNEL = "sms_receiver"
         const val SMS_EVENT_CHANNEL = "sms_receiver/events"
+        const val FILE_SHARE_CHANNEL = "safepulse/send_file"
         const val SMS_PERMISSION_CODE = 101
         const val TAG = "SafePulseSMS"
     }
@@ -29,10 +33,10 @@ class MainActivity : FlutterActivity() {
     private var smsReceiver: BroadcastReceiver? = null
     private var eventSink: EventChannel.EventSink? = null
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+    override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Method Channel for permission requests
+        // Method Channel for SMS permission requests
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "requestSmsPermissions" -> requestSmsPermissions(result)
@@ -57,6 +61,27 @@ class MainActivity : FlutterActivity() {
                 }
             }
         )
+        
+        // Method Channel for file sharing functionality
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FILE_SHARE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "sendFile" -> {
+                    val filePath = call.argument<String>("filePath")
+                    val recipients = call.argument<List<String>>("recipients")
+                    val message = call.argument<String>("message")
+                    
+                    if (filePath != null && recipients != null && message != null) {
+                        val success = sendFileViaIntent(filePath, recipients, message)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENTS", "Missing required arguments", null)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
     }
 
     private fun setupSmsReceiver() {
@@ -195,6 +220,35 @@ class MainActivity : FlutterActivity() {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
                 ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED &&
                 ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    private fun sendFileViaIntent(filePath: String, recipients: List<String>, message: String): Boolean {
+        try {
+            val file = File(filePath)
+            if (!file.exists()) return false
+            
+            val uri = FileProvider.getUriForFile(
+                this,
+                "${applicationContext.packageName}.provider",
+                file
+            )
+            
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "video/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, message)
+                putExtra("address", recipients.joinToString(";"))
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
+            val shareIntent = Intent.createChooser(sendIntent, null)
+            startActivity(shareIntent)
+            
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending file", e)
+            return false
+        }
     }
 
     override fun onDestroy() {
