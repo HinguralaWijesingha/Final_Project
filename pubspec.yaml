@@ -75,6 +75,8 @@ dependencies:
   photo_manager: ^2.6.0
   open_file: ^3.3.1
   video_player: ^2.6.1
+  file_picker: ^5.3.0
+  file_selector: ^0.9.3
 
   
 dev_dependencies:

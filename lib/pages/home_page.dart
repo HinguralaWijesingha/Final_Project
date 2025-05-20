@@ -267,7 +267,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _stopRecording() async {
+ Future<void> _stopRecording() async {
   if (!isRecording) return;
   
   _recordingTimer?.cancel();
@@ -279,9 +279,46 @@ class _HomePageState extends State<HomePage> {
         _cameraController!.value.isRecordingVideo) {
       final videoFile = await _cameraController!.stopVideoRecording();
       
-      if (_videoPath != null) {
-        await videoFile.saveTo(_videoPath!);
-        debugPrint('Video recording saved to: $_videoPath');
+      // Get the downloads directory
+      final directory = await getDownloadsDirectory();
+      if (directory == null) {
+        throw Exception('Could not access downloads directory');
+      }
+      
+      // Create SafePulse folder if it doesn't exist
+      final safePulseDir = Directory('${directory.path}/SafePulse');
+      if (!await safePulseDir.exists()) {
+        await safePulseDir.create();
+      }
+      
+      // Generate a filename with timestamp
+      final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final destFileName = 'emergency_video_$now.mp4';
+      final destPath = '${safePulseDir.path}/$destFileName';
+      
+      // Save the file to the downloads directory
+      await videoFile.saveTo(destPath);
+      _videoPath = destPath;
+      
+      debugPrint('Video recording saved to: $_videoPath');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Recording saved to ${safePulseDir.path}"),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'VIEW',
+              onPressed: () => _viewRecordedVideo(),
+            ),
+          ),
+        );
+      }
+      
+      // Send the recording to emergency contacts if needed
+      if (emergencyContacts.isNotEmpty) {
+        await _sendRecordingToContacts();
       }
     }
     
@@ -291,24 +328,6 @@ class _HomePageState extends State<HomePage> {
       debugPrint('Audio recording saved: $_audioPath');
     }
     
-    // Send the recording to emergency contacts
-    if (_videoPath != null && emergencyContacts.isNotEmpty) {
-      await _sendRecordingToContacts();
-    }
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Recording saved to Downloads/SafePulse"),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'VIEW',
-            onPressed: () => _viewRecordedVideo(),
-          ),
-        ),
-      );
-    }
   } catch (e) {
     debugPrint('Error stopping recording: $e');
     if (mounted) {
@@ -326,6 +345,78 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+Future<String?> _saveFileWithPicker(XFile videoFile) async {
+  try {
+    // Create a temporary file first to have something to work with
+    final tempDir = await getTemporaryDirectory();
+    final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final tempPath = '${tempDir.path}/temp_emergency_video_$now.mp4';
+    
+    await videoFile.saveTo(tempPath);
+    
+    Directory? directory;
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Save Emergency Recording'),
+          content: const Text('Choose where to save your emergency recording:'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Downloads'),
+              onPressed: () async {
+                // Get downloads directory
+                directory = await getDownloadsDirectory();
+                Navigator.of(context).pop(true);
+              },
+            ),
+            TextButton(
+              child: const Text('Documents'),
+              onPressed: () async {
+                // Get documents directory
+                directory = await getApplicationDocumentsDirectory();
+                Navigator.of(context).pop(true);
+              },
+            ),
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+          ],
+        );
+      },
+    );
+    
+    if (confirmed == true && directory != null) {
+      // Generate a destination path
+      String destFileName = 'emergency_video_$now.mp4';
+      String destPath = '${directory!.path}/$destFileName';
+      
+      // Copy from temp to destination
+      await File(tempPath).copy(destPath);
+      
+      // Show where it was saved
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved to ${directory!.path}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      
+      return destPath;
+    }
+    
+    return null;
+  } catch (e) {
+    debugPrint('Error saving file: $e');
+    return null;
+  }
+}
 Future<void> _sendRecordingToContacts() async {
   if (!await _requestPermissions()) {
     debugPrint("Required permissions denied");
@@ -362,7 +453,7 @@ Future<void> _sendRecordingToContacts() async {
   }
   
   try {
-    // For Android, we'll use the native intent to share the file
+    //  for Android
     if (Platform.isAndroid) {
       final file = File(_videoPath!);
       if (await file.exists()) {
@@ -380,7 +471,7 @@ Future<void> _sendRecordingToContacts() async {
         }
       }
     } else {
-      // For iOS, you might need a different approach as MMS is not directly supported
+      // For iOS
       debugPrint("Sending recordings is not supported on this platform");
       failedSends = recipients.length;
     }
