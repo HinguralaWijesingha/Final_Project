@@ -12,9 +12,20 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_fgbg/flutter_fgbg.dart';
 import 'package:video_player/video_player.dart';
 import 'package:open_file/open_file.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:workmanager/workmanager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Callback dispatcher for WorkManager
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) {
+    // This will be called when the notification button is pressed
+    return Future.value(true);
+  });
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   bool isRecording = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
+  bool _isEmergencyModeOn = false;
   
   // Camera controller
   CameraController? _cameraController;
@@ -40,21 +52,18 @@ class _HomePageState extends State<HomePage> {
   String? _audioPath;
   String? _videoPath;
 
-  // Power button detection
-  int _powerButtonPressCount = 0;
-  DateTime? _lastPowerButtonPress;
-  static const int _maxTimeWindowMs = 2000;
-  
-  // App lifecycle
-  late Stream<FGBGType> _fgbgStream;
-  late StreamSubscription<FGBGType> _fgbgSubscription;
+  // Notifications
+  final FlutterLocalNotificationsPlugin _notificationsPlugin = 
+      FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
     _loadEmergencyContacts();
     _initCameras();
-    _initPowerButtonDetection();
+    _initializeNotifications();
+    _initializeWorkManager();
+    _loadEmergencyModeStatus();
   }
 
   @override
@@ -62,54 +71,102 @@ class _HomePageState extends State<HomePage> {
     _cameraController?.dispose();
     _audioRecorder.dispose();
     _recordingTimer?.cancel();
-    _fgbgSubscription.cancel();
     super.dispose();
   }
 
-  void _initPowerButtonDetection() {
-    _fgbgStream = FGBGEvents.stream;
-    _fgbgSubscription = _fgbgStream.listen((event) {
-      _handlePowerButtonPress(event);
-    });
-
-    SystemChannels.lifecycle.setMessageHandler((msg) async {
-      if (msg == AppLifecycleState.resumed.toString()) {
-        _checkPowerButtonSequence();
-      }
-      return null;
-    });
-  }
-
-  void _handlePowerButtonPress(FGBGType event) {
-    if (event == FGBGType.background) {
-      _checkPowerButtonSequence(isPowerOff: true);
-    } else if (event == FGBGType.foreground) {
-      _checkPowerButtonSequence();
-    }
-  }
-
-  void _checkPowerButtonSequence({bool isPowerOff = false}) {
-    final now = DateTime.now();
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     
-    if (_lastPowerButtonPress == null || 
-        now.difference(_lastPowerButtonPress!).inMilliseconds > _maxTimeWindowMs) {
-      _powerButtonPressCount = 1;
-    } else {
-      _powerButtonPressCount++;
-    }
+    final InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
     
-    _lastPowerButtonPress = now;
-    
-    if (_powerButtonPressCount >= 3) {
-      _powerButtonPressCount = 0;
-      _lastPowerButtonPress = null;
-      
-      if (!isSendingAlerts && !isRecording) {
-        Future.delayed(const Duration(milliseconds: 500), () {
+    await _notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (response.payload == 'emergency_alert') {
           _sendEmergencyMessage();
-        });
-      }
+        }
+      },
+    );
+  }
+
+  Future<void> _initializeWorkManager() async {
+    await Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: false,
+    );
+  }
+
+  Future<void> _loadEmergencyModeStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isEmergencyModeOn = prefs.getBool('emergency_mode') ?? false;
+    });
+    
+    if (_isEmergencyModeOn) {
+      _showEmergencyModeNotification();
     }
+  }
+
+  Future<void> _toggleEmergencyMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('emergency_mode', value);
+    
+    // Call native method to start/stop service
+    const platform = MethodChannel('safepulse/emergency');
+    try {
+        if (value) {
+            await platform.invokeMethod('startEmergencyService');
+        } else {
+            await platform.invokeMethod('stopEmergencyService');
+        }
+    } catch (e) {
+        debugPrint('Error toggling emergency service: $e');
+    }
+    
+    setState(() {
+        _isEmergencyModeOn = value;
+    });
+    
+    if (value) {
+        _showEmergencyModeNotification();
+    } else {
+        _notificationsPlugin.cancel(0);
+    }
+  }
+
+  Future<void> _showEmergencyModeNotification() async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'emergency_channel',
+      'Emergency Mode',
+      channelDescription: 'Emergency alert notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+      ongoing: true,
+      visibility: NotificationVisibility.public,
+      fullScreenIntent: true,
+      actions: [
+        AndroidNotificationAction(
+          'emergency_action',
+          'SEND ALERT',
+          showsUserInterface: true,
+        ),
+      ],
+    );
+    
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    
+    await _notificationsPlugin.show(
+      0,
+      'Emergency Mode Active',
+      'Tap to send emergency alert',
+      platformChannelSpecifics,
+      payload: 'emergency_alert',
+    );
   }
 
   Future<void> _initCameras() async {
@@ -267,252 +324,179 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
- Future<void> _stopRecording() async {
-  if (!isRecording) return;
-  
-  _recordingTimer?.cancel();
-  
-  try {
-    // Stop video recording
-    if (_cameraController != null && 
-        _cameraController!.value.isInitialized &&
-        _cameraController!.value.isRecordingVideo) {
-      final videoFile = await _cameraController!.stopVideoRecording();
-      
-      // Get the downloads directory
-      final directory = await getDownloadsDirectory();
-      if (directory == null) {
-        throw Exception('Could not access downloads directory');
+  Future<void> _stopRecording() async {
+    if (!isRecording) return;
+    
+    _recordingTimer?.cancel();
+    
+    try {
+      // Stop video recording
+      if (_cameraController != null && 
+          _cameraController!.value.isInitialized &&
+          _cameraController!.value.isRecordingVideo) {
+        final videoFile = await _cameraController!.stopVideoRecording();
+        
+        // Get the downloads directory
+        final directory = await getDownloadsDirectory();
+        if (directory == null) {
+          throw Exception('Could not access downloads directory');
+        }
+        
+        // Create SafePulse folder if it doesn't exist
+        final safePulseDir = Directory('${directory.path}/SafePulse');
+        if (!await safePulseDir.exists()) {
+          await safePulseDir.create();
+        }
+        
+        // Generate a filename with timestamp
+        final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+        final destFileName = 'emergency_video_$now.mp4';
+        final destPath = '${safePulseDir.path}/$destFileName';
+        
+        // Save the file to the downloads directory
+        await videoFile.saveTo(destPath);
+        _videoPath = destPath;
+        
+        debugPrint('Video recording saved to: $_videoPath');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Recording saved to ${safePulseDir.path}"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'VIEW',
+                onPressed: () => _viewRecordedVideo(),
+              ),
+            ),
+          );
+        }
+        
+        // Send the recording to emergency contacts if needed
+        if (emergencyContacts.isNotEmpty) {
+          await _sendRecordingToContacts();
+        }
       }
       
-      // Create SafePulse folder if it doesn't exist
-      final safePulseDir = Directory('${directory.path}/SafePulse');
-      if (!await safePulseDir.exists()) {
-        await safePulseDir.create();
+      // Stop audio recording
+      if (await _audioRecorder.isRecording()) {
+        await _audioRecorder.stop();
+        debugPrint('Audio recording saved: $_audioPath');
       }
       
-      // Generate a filename with timestamp
-      final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final destFileName = 'emergency_video_$now.mp4';
-      final destPath = '${safePulseDir.path}/$destFileName';
-      
-      // Save the file to the downloads directory
-      await videoFile.saveTo(destPath);
-      _videoPath = destPath;
-      
-      debugPrint('Video recording saved to: $_videoPath');
-      
+    } catch (e) {
+      debugPrint('Error stopping recording: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Recording saved to ${safePulseDir.path}"),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'VIEW',
-              onPressed: () => _viewRecordedVideo(),
-            ),
+            content: Text("Error saving recording: ${e.toString()}"),
+            backgroundColor: Colors.orange,
           ),
         );
       }
-      
-      // Send the recording to emergency contacts if needed
-      if (emergencyContacts.isNotEmpty) {
-        await _sendRecordingToContacts();
+    } finally {
+      setState(() {
+        isRecording = false;
+      });
+    }
+  }
+
+  Future<void> _sendRecordingToContacts() async {
+    if (!await _requestPermissions()) {
+      debugPrint("Required permissions denied");
+      return;
+    }
+
+    setState(() {
+      isSendingAlerts = true;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Sending recording to emergency contacts..."),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+      ));
+    }
+
+    const String message = "🚨 EMERGENCY RECORDING 🚨\n"
+        "Attached is the emergency recording from SafePulse app.\n"
+        "Please check immediately!";
+
+    int successfulSends = 0;
+    int failedSends = 0;
+    
+    List<String> recipients = [];
+    for (var contact in emergencyContacts) {
+      final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
+      if (phoneNumber.isNotEmpty) {
+        recipients.add(phoneNumber);
       }
     }
     
-    // Stop audio recording
-    if (await _audioRecorder.isRecording()) {
-      await _audioRecorder.stop();
-      debugPrint('Audio recording saved: $_audioPath');
+    try {
+      // For Android
+      if (Platform.isAndroid) {
+        final file = File(_videoPath!);
+        if (await file.exists()) {
+          final channel = const MethodChannel('safepulse/send_file');
+          final result = await channel.invokeMethod('sendFile', {
+            'filePath': _videoPath,
+            'recipients': recipients,
+            'message': message,
+          });
+          
+          if (result == true) {
+            successfulSends = recipients.length;
+          } else {
+            failedSends = recipients.length;
+          }
+        }
+      } else {
+        // For iOS
+        debugPrint("Sending recordings is not supported on this platform");
+        failedSends = recipients.length;
+      }
+    } catch (e) {
+      debugPrint("Error sending recording: $e");
+      failedSends = recipients.length;
     }
-    
-  } catch (e) {
-    debugPrint('Error stopping recording: $e');
+
+    setState(() {
+      isSendingAlerts = false;
+    });
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error saving recording: ${e.toString()}"),
-          backgroundColor: Colors.orange,
+          content: Text(
+            successfulSends > 0
+              ? "Recording sent to $successfulSends contact(s)"
+              : "Failed to send recording",
+            style: const TextStyle(fontSize: 16),
+          ),
+          backgroundColor: successfulSends > 0 ? Colors.red : Colors.orange,
+          duration: const Duration(seconds: 5),
+          action: failedSends > 0
+              ? SnackBarAction(
+                  label: 'Details',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to send to $failedSends contact(s)'),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  },
+                )
+              : null,
         ),
       );
     }
-  } finally {
-    setState(() {
-      isRecording = false;
-    });
   }
-}
-
-Future<String?> _saveFileWithPicker(XFile videoFile) async {
-  try {
-    // Create a temporary file first to have something to work with
-    final tempDir = await getTemporaryDirectory();
-    final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final tempPath = '${tempDir.path}/temp_emergency_video_$now.mp4';
-    
-    await videoFile.saveTo(tempPath);
-    
-    Directory? directory;
-    
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Save Emergency Recording'),
-          content: const Text('Choose where to save your emergency recording:'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Downloads'),
-              onPressed: () async {
-                // Get downloads directory
-                directory = await getDownloadsDirectory();
-                Navigator.of(context).pop(true);
-              },
-            ),
-            TextButton(
-              child: const Text('Documents'),
-              onPressed: () async {
-                // Get documents directory
-                directory = await getApplicationDocumentsDirectory();
-                Navigator.of(context).pop(true);
-              },
-            ),
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-            ),
-          ],
-        );
-      },
-    );
-    
-    if (confirmed == true && directory != null) {
-      // Generate a destination path
-      String destFileName = 'emergency_video_$now.mp4';
-      String destPath = '${directory!.path}/$destFileName';
-      
-      // Copy from temp to destination
-      await File(tempPath).copy(destPath);
-      
-      // Show where it was saved
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Saved to ${directory!.path}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-      
-      return destPath;
-    }
-    
-    return null;
-  } catch (e) {
-    debugPrint('Error saving file: $e');
-    return null;
-  }
-}
-Future<void> _sendRecordingToContacts() async {
-  if (!await _requestPermissions()) {
-    debugPrint("Required permissions denied");
-    return;
-  }
-
-  setState(() {
-    isSendingAlerts = true;
-  });
-
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Sending recording to emergency contacts..."),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  const String message = "🚨 EMERGENCY RECORDING 🚨\n"
-      "Attached is the emergency recording from SafePulse app.\n"
-      "Please check immediately!";
-
-  int successfulSends = 0;
-  int failedSends = 0;
-  
-  List<String> recipients = [];
-  for (var contact in emergencyContacts) {
-    final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (phoneNumber.isNotEmpty) {
-      recipients.add(phoneNumber);
-    }
-  }
-  
-  try {
-    //  for Android
-    if (Platform.isAndroid) {
-      final file = File(_videoPath!);
-      if (await file.exists()) {
-        final channel = const MethodChannel('safepulse/send_file');
-        final result = await channel.invokeMethod('sendFile', {
-          'filePath': _videoPath,
-          'recipients': recipients,
-          'message': message,
-        });
-        
-        if (result == true) {
-          successfulSends = recipients.length;
-        } else {
-          failedSends = recipients.length;
-        }
-      }
-    } else {
-      // For iOS
-      debugPrint("Sending recordings is not supported on this platform");
-      failedSends = recipients.length;
-    }
-  } catch (e) {
-    debugPrint("Error sending recording: $e");
-    failedSends = recipients.length;
-  }
-
-  setState(() {
-    isSendingAlerts = false;
-  });
-
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          successfulSends > 0
-            ? "Recording sent to $successfulSends contact(s)"
-            : "Failed to send recording",
-          style: const TextStyle(fontSize: 16),
-        ),
-        backgroundColor: successfulSends > 0 ? Colors.red : Colors.orange,
-        duration: const Duration(seconds: 5),
-        action: failedSends > 0
-            ? SnackBarAction(
-                label: 'Details',
-                textColor: Colors.white,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to send to $failedSends contact(s)'),
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                },
-              )
-            : null,
-      ),
-    );
-  }
-}
 
   Future<void> _viewRecordedVideo() async {
     if (_videoPath == null || !await File(_videoPath!).exists()) {
@@ -858,6 +842,27 @@ Future<void> _sendRecordingToContacts() async {
     );
   }
 
+  Widget _buildEmergencyModeSwitch() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            "Emergency Mode:",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          Switch(
+            value: _isEmergencyModeOn,
+            onChanged: _toggleEmergencyMode,
+            activeColor: Colors.red,
+            activeTrackColor: Colors.red.withOpacity(0.5),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -880,6 +885,7 @@ Future<void> _sendRecordingToContacts() async {
                     const SizedBox(height: 8),
                     const PublicEmergencyContacts(),
                     const SizedBox(height: 16),
+                    _buildEmergencyModeSwitch(),
                     const Text(
                       "Live Help",
                       style: TextStyle(
