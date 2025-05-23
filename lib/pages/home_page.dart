@@ -17,6 +17,8 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+  import 'package:share_plus/share_plus.dart';
+
 
 // Callback dispatcher for WorkManager
 @pragma('vm:entry-point')
@@ -399,101 +401,104 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _sendRecordingToContacts() async {
-    if (!await _requestPermissions()) {
-      debugPrint("Required permissions denied");
+
+Future<void> _sendRecordingToContacts() async {
+  if (!await _requestPermissions()) {
+    debugPrint("Required permissions denied");
+    return;
+  }
+
+  setState(() {
+    isSendingAlerts = true;
+  });
+
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Preparing emergency recording for sharing..."),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  const String message = "🚨 EMERGENCY RECORDING 🚨\n"
+      "Attached is the emergency recording from SafePulse app.\n"
+      "Please check immediately!";
+
+  try {
+    final file = File(_videoPath!);
+    if (!await file.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Recording file not found"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
-    setState(() {
-      isSendingAlerts = true;
+    // Show confirmation dialog before sharing
+    final shouldShare = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Share Emergency Recording"),
+        content: const Text("This will open your device's share sheet to send the recording."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Continue"),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!shouldShare) {
+      debugPrint("User cancelled sharing");
+      return;
+    }
+
+    // Get the result of the share action
+    final shareResult = await Share.shareXFiles(
+      [XFile(_videoPath!)],
+      text: message,
+      subject: 'Emergency Recording',
+    ).then((_) => true).catchError((e) {
+      debugPrint("Share error: $e");
+      return false;
     });
 
-    if (mounted) {
+    if (shareResult && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Sending recording to emergency contacts..."),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-      ));
-    }
-
-    const String message = "🚨 EMERGENCY RECORDING 🚨\n"
-        "Attached is the emergency recording from SafePulse app.\n"
-        "Please check immediately!";
-
-    int successfulSends = 0;
-    int failedSends = 0;
-    
-    List<String> recipients = [];
-    for (var contact in emergencyContacts) {
-      final phoneNumber = contact.number.replaceAll(RegExp(r'[^0-9+]'), '');
-      if (phoneNumber.isNotEmpty) {
-        recipients.add(phoneNumber);
-      }
-    }
-    
-    try {
-      // For Android
-      if (Platform.isAndroid) {
-        final file = File(_videoPath!);
-        if (await file.exists()) {
-          final channel = const MethodChannel('safepulse/send_file');
-          final result = await channel.invokeMethod('sendFile', {
-            'filePath': _videoPath,
-            'recipients': recipients,
-            'message': message,
-          });
-          
-          if (result == true) {
-            successfulSends = recipients.length;
-          } else {
-            failedSends = recipients.length;
-          }
-        }
-      } else {
-        // For iOS
-        debugPrint("Sending recordings is not supported on this platform");
-        failedSends = recipients.length;
-      }
-    } catch (e) {
-      debugPrint("Error sending recording: $e");
-      failedSends = recipients.length;
-    }
-
-    setState(() {
-      isSendingAlerts = false;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            successfulSends > 0
-              ? "Recording sent to $successfulSends contact(s)"
-              : "Failed to send recording",
-            style: const TextStyle(fontSize: 16),
-          ),
-          backgroundColor: successfulSends > 0 ? Colors.red : Colors.orange,
-          duration: const Duration(seconds: 5),
-          action: failedSends > 0
-              ? SnackBarAction(
-                  label: 'Details',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to send to $failedSends contact(s)'),
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                  },
-                )
-              : null,
+          content: Text("Recording shared successfully"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
       );
     }
+  } catch (e) {
+    debugPrint("Error sharing recording: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to share: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    setState(() {
+      isSendingAlerts = false;
+    });
   }
+}
 
   Future<void> _viewRecordedVideo() async {
     if (_videoPath == null || !await File(_videoPath!).exists()) {
@@ -512,12 +517,9 @@ class _HomePageState extends State<HomePage> {
           builder: (context) => Scaffold(
             appBar: AppBar(title: const Text("Recorded Video")),
             body: Center(
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
               child: VideoPlayerWidget(videoPath: _videoPath!),
             ),
           ),
-        ),
         ),
       );
     }
