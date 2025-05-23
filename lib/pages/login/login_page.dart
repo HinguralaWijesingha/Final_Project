@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:safe_pulse/pages/login/forget_password_page.dart';
 import 'package:safe_pulse/text/button.dart';
-import 'package:safe_pulse/text/image.dart';
 
 class LoginPage extends StatefulWidget {
   final Function()? onTap;
@@ -62,9 +61,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacementNamed(context, '/navigate');
 
       }
-      
-      // The StreamBuilder in UserCheckPage will automatically handle navigation
-      // No need to navigate manually here
+
       
     } on FirebaseAuthException catch (e) {
       // pop the loading circle
@@ -137,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 35),
+                const SizedBox(height: 10),
 
                 // App logo
                 Image.asset(
@@ -254,7 +251,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 10.0),
-                        child: Text("Or continue with"),
+                        child: Text("Or create an account"),
                       ),
                       Expanded(
                         child: Divider(color: Colors.black),
@@ -262,19 +259,6 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 40),
-
-                // Social login buttons
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ImageText(imagePath: 'assets/google.png'),
-                    //SizedBox(width: 20),
-                    //ImageText(imagePath: 'assets/apple.png'),
-                  ],
-                ),
-
                 const SizedBox(height: 20),
 
                 // Register now
