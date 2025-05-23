@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -202,11 +203,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadEmergencyContacts() async {
-    List<Dcontacts> contacts = await _db.getContacts();
-    setState(() {
-      emergencyContacts = contacts;
-    });
-  }
+  List<Dcontacts> contacts = await _db.getContacts();
+  setState(() {
+    emergencyContacts = contacts;
+  });
+  
+  // Store contacts in SharedPreferences for Android receiver
+  final prefs = await SharedPreferences.getInstance();
+  final contactsJson = jsonEncode(contacts.map((c) => {
+    'name': c.name,
+    'number': c.number.replaceAll(RegExp(r'[^0-9+]'), ''),
+  }).toList());
+  await prefs.setString('emergency_contacts', contactsJson);
+}
+
+Future<void> _storeEmergencyContacts() async {
+  final contacts = await _db.getContacts();
+  final prefs = await SharedPreferences.getInstance();
+  final contactsJson = jsonEncode(contacts.map((c) => {
+    'name': c.name,
+    'number': c.number.replaceAll(RegExp(r'[^0-9+]'), ''),
+  }).toList());
+  await prefs.setString('emergency_contacts', contactsJson);
+}
 
   Future<bool> _requestPermissions() async {
     Map<Permission, PermissionStatus> statuses = await [
@@ -562,8 +581,7 @@ Future<void> _sendRecordingToContacts() async {
 
     const String message = "🚨 EMERGENCY ALERT 🚨\n"
         "I need immediate help!\n"
-        "This is an automated message from SafePulse app.\n"
-        "Triggered by emergency power button sequence.";
+        "This is an automated message from SafePulse app.\n";
 
     int successfulSends = 0;
     int failedSends = 0;
