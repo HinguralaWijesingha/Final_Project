@@ -342,18 +342,15 @@ class _HomePageState extends State<HomePage> {
           throw Exception('Could not access downloads directory');
         }
         
-        // Create SafePulse folder if it doesn't exist
         final safePulseDir = Directory('${directory.path}/SafePulse');
         if (!await safePulseDir.exists()) {
           await safePulseDir.create();
         }
         
-        // Generate a filename with timestamp
         final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
         final destFileName = 'emergency_video_$now.mp4';
         final destPath = '${safePulseDir.path}/$destFileName';
         
-        // Save the file to the downloads directory
         await videoFile.saveTo(destPath);
         _videoPath = destPath;
         
@@ -515,9 +512,12 @@ class _HomePageState extends State<HomePage> {
           builder: (context) => Scaffold(
             appBar: AppBar(title: const Text("Recorded Video")),
             body: Center(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
               child: VideoPlayerWidget(videoPath: _videoPath!),
             ),
           ),
+        ),
         ),
       );
     }
