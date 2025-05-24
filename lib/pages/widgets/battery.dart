@@ -463,7 +463,7 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
             ),
             Text('• Battery > Battery optimization'),
             Text('• Security > App permissions'),
-            Text('• Apps > Your app > Battery'),
+            Text('• Apps > Safe Pulse app > Battery'),
           ],
         ),
         actions: [
