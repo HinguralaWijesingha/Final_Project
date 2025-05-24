@@ -79,6 +79,7 @@ dependencies:
   file_selector: ^0.9.3
   google_sign_in: ^6.1.0
   share_plus: ^7.0.1
+  android_intent_plus: ^4.0.1
 
   
 dev_dependencies:

@@ -19,7 +19,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
   Duration _callDuration = Duration.zero;
   Timer? _timer;
 
-  String callerName = "John Doe"; // Default name
+  String callerName = ""; // Default name
   String language = "english"; // Default language
 
   @override
@@ -30,7 +30,6 @@ class _FakeCallPageState extends State<FakeCallPage> {
     _startVibration();
   }
 
-  // Check if it's the first time the app is launched
   void _checkFirstTimeLaunch() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool? isFirstTime = prefs.getBool('isFirstTime');
@@ -39,7 +38,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
       _showNameAndLanguageDialog();
     } else {
       setState(() {
-        callerName = prefs.getString('callerName') ?? "John Doe";
+        callerName = prefs.getString('callerName') ?? "unknown";
         language = prefs.getString('language') ?? "english";
       });
     }
@@ -144,13 +143,11 @@ class _FakeCallPageState extends State<FakeCallPage> {
       _isSpeakerOn = !_isSpeakerOn;
     });
     
-    // Set the volume based on speaker mode
-    // Note: AudioPlayers doesn't directly control system speaker mode,
-    // but we can adjust volume to simulate speaker mode
+
     if (_isSpeakerOn) {
-      await _audioPlayer.setVolume(1.0); // Maximum volume
+      await _audioPlayer.setVolume(1.0); // Maximum 
     } else {
-      await _audioPlayer.setVolume(0.5); // Normal volume
+      await _audioPlayer.setVolume(0.5); // Normal 
     }
   }
 
@@ -197,7 +194,6 @@ class _FakeCallPageState extends State<FakeCallPage> {
           children: [
             const CircleAvatar(
               radius: 60,
-              backgroundImage: AssetImage('assets/fake_caller.jpg'),
             ),
             const SizedBox(height: 20),
             Text(
