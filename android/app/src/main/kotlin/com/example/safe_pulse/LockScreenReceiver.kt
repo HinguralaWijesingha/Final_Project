@@ -24,6 +24,11 @@ class LockScreenReceiver : BroadcastReceiver() {
                 context.stopService(Intent(context, EmergencyForegroundService::class.java))
             }
             
+            "com.example.safe_pulse.FAKE_CALL_ACTION" -> {
+                Log.d(TAG, "Fake call action triggered from lock screen")
+                startFakeCall(context)
+            }
+            
             Intent.ACTION_SCREEN_OFF -> {
                 Log.d(TAG, "Screen turned off")
                 val serviceIntent = Intent(context, EmergencyForegroundService::class.java)
@@ -33,6 +38,19 @@ class LockScreenReceiver : BroadcastReceiver() {
                     context.startService(serviceIntent)
                 }
             }
+        }
+    }
+
+    private fun startFakeCall(context: Context) {
+        try {
+            val fakeCallIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("action", "start_fake_call")
+            }
+            context.startActivity(fakeCallIntent)
+            Log.i(TAG, "Fake call started from lock screen")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting fake call: ${e.message}", e)
         }
     }
 

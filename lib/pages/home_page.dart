@@ -13,6 +13,7 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:intl/intl.dart';
+import 'package:safe_pulse/pages/widgets/fake_call.dart';
 import 'package:video_player/video_player.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -67,6 +68,7 @@ class _HomePageState extends State<HomePage> {
     _initializeNotifications();
     _initializeWorkManager();
     _loadEmergencyModeStatus();
+     _setupMethodChannel();
   }
 
   @override
@@ -111,6 +113,29 @@ class _HomePageState extends State<HomePage> {
   //   _showEmergencyModeNotification();
   // }
 }
+
+Future<void> _setupMethodChannel() async {
+  const platform = MethodChannel('safepulse/emergency');
+  
+  platform.setMethodCallHandler((call) async {
+    switch (call.method) {
+      case 'navigateToFakeCall':
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const FakeCallPage()),
+          );
+        }
+        break;
+      default:
+        throw PlatformException(
+          code: 'Unimplemented',
+          details: 'Method ${call.method} not implemented',
+        );
+    }
+  });
+}
+
 
 Future<void> _toggleEmergencyMode(bool value) async {
   final prefs = await SharedPreferences.getInstance();

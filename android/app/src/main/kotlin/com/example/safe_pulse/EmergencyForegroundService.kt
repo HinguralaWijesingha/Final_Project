@@ -68,21 +68,33 @@ class EmergencyForegroundService : Service() {
     }
 
     private fun createEmergencyNotification(): Notification {
-        // Create broadcast intent instead of activity intent
+        // Create broadcast intent for emergency alert
         val emergencyIntent = Intent(this, LockScreenReceiver::class.java).apply {
             action = "com.example.safe_pulse.EMERGENCY_ACTION"
         }
         
-        val pendingIntent = PendingIntent.getBroadcast(
+        val emergencyPendingIntent = PendingIntent.getBroadcast(
             this,
             0,
             emergencyIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Create broadcast intent for fake call
+        val fakeCallIntent = Intent(this, LockScreenReceiver::class.java).apply {
+            action = "com.example.safe_pulse.FAKE_CALL_ACTION"
+        }
+        
+        val fakeCallPendingIntent = PendingIntent.getBroadcast(
+            this,
+            1,
+            fakeCallIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, "emergency_service_channel")
             .setContentTitle("Emergency Mode Active")
-            .setContentText("Tap to send emergency alert")
+            .setContentText("Tap to send emergency alert or make fake call")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -90,12 +102,19 @@ class EmergencyForegroundService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .setShowWhen(false)
-            .setContentIntent(pendingIntent) // Main tap action
+            .setContentIntent(emergencyPendingIntent) // Main tap action - emergency alert
             .addAction(
                 NotificationCompat.Action.Builder(
                     android.R.drawable.ic_dialog_alert,
                     "SEND ALERT",
-                    pendingIntent
+                    emergencyPendingIntent
+                ).build()
+            )
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_menu_call,
+                    "CALL",
+                    fakeCallPendingIntent
                 ).build()
             )
             .build()
