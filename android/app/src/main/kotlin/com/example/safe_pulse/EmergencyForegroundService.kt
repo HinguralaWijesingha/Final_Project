@@ -59,6 +59,7 @@ class EmergencyForegroundService : Service() {
                 description = "Keeps emergency mode active"
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setShowBadge(true)
+                setBypassDnd(true) // Allow notification to bypass Do Not Disturb
             }
             
             val manager = getSystemService(NotificationManager::class.java)
@@ -67,6 +68,7 @@ class EmergencyForegroundService : Service() {
     }
 
     private fun createEmergencyNotification(): Notification {
+        // Create broadcast intent instead of activity intent
         val emergencyIntent = Intent(this, LockScreenReceiver::class.java).apply {
             action = "com.example.safe_pulse.EMERGENCY_ACTION"
         }
@@ -83,9 +85,12 @@ class EmergencyForegroundService : Service() {
             .setContentText("Tap to send emergency alert")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(pendingIntent, true)
             .setOngoing(true)
+            .setAutoCancel(false)
+            .setShowWhen(false)
+            .setContentIntent(pendingIntent) // Main tap action
             .addAction(
                 NotificationCompat.Action.Builder(
                     android.R.drawable.ic_dialog_alert,
