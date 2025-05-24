@@ -116,7 +116,6 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('emergency_mode', value);
     
-    // Call native method to start/stop service
     const platform = MethodChannel('safepulse/emergency');
     try {
         if (value) {
@@ -208,7 +207,6 @@ class _HomePageState extends State<HomePage> {
     emergencyContacts = contacts;
   });
   
-  // Store contacts in SharedPreferences for Android receiver
   final prefs = await SharedPreferences.getInstance();
   final contactsJson = jsonEncode(contacts.map((c) => {
     'name': c.name,
@@ -391,7 +389,6 @@ Future<void> _storeEmergencyContacts() async {
           );
         }
         
-        // Send the recording to emergency contacts if needed
         if (emergencyContacts.isNotEmpty) {
           await _sendRecordingToContacts();
         }
@@ -459,7 +456,6 @@ Future<void> _sendRecordingToContacts() async {
       return;
     }
 
-    // Show confirmation dialog before sharing
     final shouldShare = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

@@ -11,10 +11,8 @@ import 'package:logger/logger.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Create a global logger for background tasks
 final Logger _globalLogger = Logger();
 
-// Create a global function to send SMS that can be used in background
 @pragma('vm:entry-point')
 Future<void> sendSmsBackground(List<String> recipients, String message) async {
   try {
@@ -61,7 +59,6 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   final Logger _logger = Logger();
   
-  // New variables for auto-sending
   int _thresholdLevel = 50; // Default threshold
   Timer? _autoSendTimer;
   bool _autoSendEnabled = true;
@@ -71,7 +68,6 @@ class _BatteryMonitorPageState extends State<BatteryMonitorPage> {
     super.initState();
     _initSystem();
     
-    // Register broadcast receiver for device screen state
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _registerAppLifecycleEvents();
     });

@@ -15,7 +15,7 @@ class FakeCallPage extends StatefulWidget {
 class _FakeCallPageState extends State<FakeCallPage> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isCallAnswered = false;
-  bool _isSpeakerOn = false; // Added for speaker functionality
+  bool _isSpeakerOn = false; // 
   Duration _callDuration = Duration.zero;
   Timer? _timer;
 
@@ -30,7 +30,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
     _startVibration();
   }
 
-  // Check if it's the first time the app is launched
+  //  first time the app is launched
   void _checkFirstTimeLaunch() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool? isFirstTime = prefs.getBool('isFirstTime');
@@ -45,7 +45,6 @@ class _FakeCallPageState extends State<FakeCallPage> {
     }
   }
 
-  // Show a dialog to enter caller's name and select language
   void _showNameAndLanguageDialog() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -56,7 +55,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
       // ignore: use_build_context_synchronously
       context: context,
       builder: (context) {
-        return StatefulBuilder(  // Use StatefulBuilder to manage dialog state
+        return StatefulBuilder(  
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text('Enter Caller Name and Language'),
@@ -71,7 +70,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
                   DropdownButton<String>(
                     value: selectedLanguage,
                     onChanged: (String? newValue) {
-                      setDialogState(() {  // Use setDialogState instead of setState
+                      setDialogState(() {  
                         selectedLanguage = newValue!;
                       });
                     },
@@ -88,12 +87,10 @@ class _FakeCallPageState extends State<FakeCallPage> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
-                    // Save the data to SharedPreferences
                     prefs.setBool('isFirstTime', false);
                     prefs.setString('callerName', nameController.text.isEmpty ? "Unknown Caller" : nameController.text);
                     prefs.setString('language', selectedLanguage);
 
-                    // Set the state with the user's input
                     setState(() {
                       callerName = nameController.text.isEmpty ? "Unknown Caller" : nameController.text;
                       language = selectedLanguage;
@@ -126,7 +123,6 @@ class _FakeCallPageState extends State<FakeCallPage> {
 
   void _stopRingtoneAndVibration() {
     _audioPlayer.stop();
-    // No need to cancel vibration manually
   }
 
   void _startCallTimer() {
@@ -232,7 +228,6 @@ class _FakeCallPageState extends State<FakeCallPage> {
                     },
                     child: const Icon(Icons.call),
                   ),
-                // Only show speaker button when the call is answered
                 if (_isCallAnswered)
                   FloatingActionButton(
                     backgroundColor: _isSpeakerOn ? Colors.blue : Colors.grey,

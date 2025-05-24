@@ -83,7 +83,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               return;
             }
 
-            // Normalize numbers for comparison
             final normalizedSender = _normalizeNumber(sender);
             final normalizedContact = _contact != null ? _normalizeNumber(_contact!.number) : '';
             
@@ -104,14 +103,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
         });
 
-    // Also check for any recent messages that might have been missed
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForRecentMessages();
     });
   }
 
   String _normalizeNumber(String number) {
-    // Remove all non-digit characters except +
     return number.replaceAll(RegExp(r'[^\d+]'), '');
   }
 

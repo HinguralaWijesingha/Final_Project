@@ -30,13 +30,11 @@ class SMSService {
     debugPrint('Initializing SMS Service...');
     
     try {
-      // Request SMS permissions
       _permissionsGranted = await telephony.requestPhoneAndSmsPermissions ?? false;
       
       if (_permissionsGranted) {
         debugPrint('SMS permissions granted');
         
-        // Register SMS listeners
         telephony.listenIncomingSms(
           onNewMessage: _onMessageReceived,
           onBackgroundMessage: backgroundMessageHandler,
@@ -57,17 +55,14 @@ class SMSService {
 
   Future<void> _checkForNewMessages() async {
     try {
-      // Get all SMS messages from the device
       final messages = await telephony.getInboxSms(
         columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
         sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
       );
       
-      // Limit to most recent 50 messages for performance
       final recentMessages = messages.length > 50 ? messages.sublist(0, 50) : messages;
       debugPrint('Processing ${recentMessages.length} recent messages');
       
-      // Process messages in reverse order (oldest first)
       for (var sms in recentMessages.reversed) {
         await _processMessage(
           sms.address ?? '', 
@@ -95,7 +90,6 @@ class SMSService {
       final normalizedSender = _normalizePhoneNumber(sender);
       final contacts = await db.getContacts();
       
-      // Find matching contact
       Dcontacts? matchedContact;
       for (var contact in contacts) {
         if (_isNumberMatch(_normalizePhoneNumber(contact.number), normalizedSender)) {
@@ -114,7 +108,6 @@ class SMSService {
           false,
         );
         
-        // Save to database and notify listeners
         await db.insertMessage(newMessage);
         _messageStreamController.add(newMessage);
         
@@ -128,16 +121,13 @@ class SMSService {
   }
   
   bool _isNumberMatch(String contactNumber, String senderNumber) {
-    // Check if either number ends with the other (accounting for different formats)
     return contactNumber.endsWith(senderNumber) || 
            senderNumber.endsWith(contactNumber);
   }
   
   String _normalizePhoneNumber(String phoneNumber) {
-    // Remove all non-digit characters
     String digitsOnly = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
     
-    // Remove country code if present (keep last 10 digits)
     if (digitsOnly.length > 10) {
       return digitsOnly.substring(digitsOnly.length - 10);
     }
@@ -150,7 +140,6 @@ class SMSService {
     _isInitialized = false;
   }
 
-  // Helper to get the minimum of two integers
   static int min(int a, int b) => a < b ? a : b;
 }
 

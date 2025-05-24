@@ -26,7 +26,6 @@ class _MapPageState extends State<MapPage> {
   LatLng? _destinationLocation;
   List<LatLng> _route = [];
   
-  // Stream subscription for location updates
   StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
@@ -38,7 +37,6 @@ class _MapPageState extends State<MapPage> {
   
   @override
   void dispose() {
-    // Cancel the subscription when the widget is disposed
     _positionStreamSubscription?.cancel();
     _mapController.dispose();
     _locationController.dispose();
@@ -55,10 +53,8 @@ class _MapPageState extends State<MapPage> {
   Future<void> _initializeLocationTracking() async {
     if (!await _checkLocationPermission()) return;
     
-    // First get current location to initialize the map
     await _getCurrentLocation();
     
-    // Then start the stream for continuous updates
     _startLocationUpdates();
   }
 
@@ -75,13 +71,11 @@ class _MapPageState extends State<MapPage> {
   }
   
   void _startLocationUpdates() {
-    // Create location settings
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Update every 10 meters
+      distanceFilter: 10, 
     );
     
-    // Start listening to the position stream
     _positionStreamSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings
     ).listen((Position position) {
@@ -89,12 +83,10 @@ class _MapPageState extends State<MapPage> {
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
         
-        // If we're following the user's location, update the map center
         if (_shouldFollowUser) {
           _mapController.move(_currentLocation!, _mapController.camera.zoom);
         }
         
-        // If we have a destination, update the route
         if (_destinationLocation != null) {
           _fetchRoute();
         }
@@ -136,7 +128,7 @@ class _MapPageState extends State<MapPage> {
         if (!mounted) return;
         setState(() {
           _destinationLocation = LatLng(lat, lon);
-          _shouldFollowUser = false; // Stop following user when destination is set
+          _shouldFollowUser = false; 
         });
         await _fetchRoute();
       } else {
@@ -208,7 +200,7 @@ class _MapPageState extends State<MapPage> {
     if (_currentLocation != null) {
       _mapController.move(_currentLocation!, 15);
       setState(() {
-        _shouldFollowUser = true; // Enable following when user clicks on location button
+        _shouldFollowUser = true; 
       });
     } else {
       _showErrorMessage("Unable to get current location");
@@ -284,13 +276,11 @@ class _MapPageState extends State<MapPage> {
           "EMERGENCY! My current location: https://maps.google.com/?q=${_currentLocation!.latitude},${_currentLocation!.longitude}";
 
       try {
-        // Check SMS permission first
         if (!await _checkSmsPermission()) {
           _showErrorMessage("SMS permission denied");
           return;
         }
 
-        // Attempt direct send (Android only)
         String? result = await sendSMS(
           message: message,
           recipients: [cleanNumber],
@@ -306,7 +296,6 @@ class _MapPageState extends State<MapPage> {
             ),
           );
         } else {
-          // Fallback to normal SMS sending
           await sendSMS(
             message: message,
             recipients: [cleanNumber],
@@ -335,7 +324,6 @@ class _MapPageState extends State<MapPage> {
                       minZoom: 0,
                       maxZoom: 150,
                       onTap: (_, __) {
-                        // Disable following when user interacts with the map
                         setState(() {
                           _shouldFollowUser = false;
                         });
@@ -417,7 +405,6 @@ class _MapPageState extends State<MapPage> {
                 ]),
               ),
             ),
-            // Show a 'following' indicator when active
             if (_shouldFollowUser && _currentLocation != null)
               Positioned(
                 bottom: 200,

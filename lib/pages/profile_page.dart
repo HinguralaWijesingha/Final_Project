@@ -83,11 +83,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _deleteUserData() async {
     try {
-      // Delete main user document
       await usersCollection.doc(currentUser.uid).delete();
       
-      // Add any additional collections/subcollections to delete here
-      // Example: await usersCollection.doc(currentUser.uid).collection('subcollection').get().then(...);
+
     } catch (e) {
       debugPrint('Error deleting user data: $e');
       rethrow;
@@ -96,7 +94,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _deleteAuthAccount() async {
     try {
-      // Reauthenticate may be required here for recently logged-in users
       await currentUser.delete();
     } catch (e) {
       debugPrint('Error deleting auth account: $e');
