@@ -39,7 +39,7 @@ class EmergencyForegroundService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? {
-        return null // We're not using binding
+        return null 
     }
 
     override fun onDestroy() {
@@ -59,7 +59,7 @@ class EmergencyForegroundService : Service() {
                 description = "Keeps emergency mode active"
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setShowBadge(true)
-                setBypassDnd(true) // Allow notification to bypass Do Not Disturb
+                setBypassDnd(true) 
             }
             
             val manager = getSystemService(NotificationManager::class.java)
@@ -68,7 +68,7 @@ class EmergencyForegroundService : Service() {
     }
 
     private fun createEmergencyNotification(): Notification {
-        // Create broadcast intent for emergency alert
+        // Create  emergency alert
         val emergencyIntent = Intent(this, LockScreenReceiver::class.java).apply {
             action = "com.example.safe_pulse.EMERGENCY_ACTION"
         }
@@ -80,7 +80,7 @@ class EmergencyForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Create broadcast intent for fake call
+        // Create  fake call
         val fakeCallIntent = Intent(this, LockScreenReceiver::class.java).apply {
             action = "com.example.safe_pulse.FAKE_CALL_ACTION"
         }
@@ -102,7 +102,7 @@ class EmergencyForegroundService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .setShowWhen(false)
-            .setContentIntent(emergencyPendingIntent) // Main tap action - emergency alert
+            .setContentIntent(emergencyPendingIntent) 
             .addAction(
                 NotificationCompat.Action.Builder(
                     android.R.drawable.ic_dialog_alert,
