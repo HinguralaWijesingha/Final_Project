@@ -30,6 +30,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
     _startVibration();
   }
 
+  // Check if it's the first time the app is launched
   void _checkFirstTimeLaunch() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool? isFirstTime = prefs.getBool('isFirstTime');
@@ -38,7 +39,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
       _showNameAndLanguageDialog();
     } else {
       setState(() {
-        callerName = prefs.getString('callerName') ?? "unknown";
+        callerName = prefs.getString('callerName') ?? "Unknown Caller";
         language = prefs.getString('language') ?? "english";
       });
     }
