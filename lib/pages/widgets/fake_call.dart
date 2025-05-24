@@ -52,56 +52,60 @@ class _FakeCallPageState extends State<FakeCallPage> {
     TextEditingController nameController = TextEditingController();
     String selectedLanguage = "english";
 
-    // Show dialog to input caller's name and select language
     await showDialog(
       // ignore: use_build_context_synchronously
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Enter Caller Name and Language'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Caller Name'),
+        return StatefulBuilder(  // Use StatefulBuilder to manage dialog state
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Enter Caller Name and Language'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Caller Name'),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButton<String>(
+                    value: selectedLanguage,
+                    onChanged: (String? newValue) {
+                      setDialogState(() {  // Use setDialogState instead of setState
+                        selectedLanguage = newValue!;
+                      });
+                    },
+                    items: <String>['english', 'sinhala']
+                        .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value.toUpperCase()), 
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-              DropdownButton<String>(
-                value: selectedLanguage,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    selectedLanguage = newValue!;
-                  });
-                },
-                items: <String>['english', 'sinhala']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                // Save the data to SharedPreferences
-                prefs.setBool('isFirstTime', false);
-                prefs.setString('callerName', nameController.text);
-                prefs.setString('language', selectedLanguage);
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    // Save the data to SharedPreferences
+                    prefs.setBool('isFirstTime', false);
+                    prefs.setString('callerName', nameController.text.isEmpty ? "Unknown Caller" : nameController.text);
+                    prefs.setString('language', selectedLanguage);
 
-                // Set the state with the user's input
-                setState(() {
-                  callerName = nameController.text;
-                  language = selectedLanguage;
-                });
+                    // Set the state with the user's input
+                    setState(() {
+                      callerName = nameController.text.isEmpty ? "Unknown Caller" : nameController.text;
+                      language = selectedLanguage;
+                    });
 
-                Navigator.of(context).pop();
-              },
-              child: const Text('Save'),
-            ),
-          ],
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -152,13 +156,11 @@ class _FakeCallPageState extends State<FakeCallPage> {
     }
   }
 
-  // Play the appropriate fake voice message based on language
   void _playFakeVoice() async {
     if (language == 'english') {
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       await _audioPlayer.play(AssetSource('fake_voice_english.mp3'));
       
-      // Set initial volume based on speaker setting
       if (_isSpeakerOn) {
         await _audioPlayer.setVolume(1.0);
       } else {
@@ -166,9 +168,8 @@ class _FakeCallPageState extends State<FakeCallPage> {
       }
     } else if (language == 'sinhala') {
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
-      //await _audioPlayer.play(AssetSource('fake_voice_sinhala.mp3'));
+      await _audioPlayer.play(AssetSource('fake_call_sinhala.mp3'));
       
-      // Set initial volume based on speaker setting
       if (_isSpeakerOn) {
         await _audioPlayer.setVolume(1.0);
       } else {
@@ -181,7 +182,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
   void dispose() {
     _stopRingtoneAndVibration();
     _timer?.cancel();
-    _audioPlayer.dispose(); // Properly dispose of the audio player
+    _audioPlayer.dispose(); 
     super.dispose();
   }
 
