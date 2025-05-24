@@ -25,7 +25,11 @@ class _MapPageState extends State<MapPage> {
   LatLng? _currentLocation;
   LatLng? _destinationLocation;
   List<LatLng> _route = [];
+  Dcontacts? _selectedContact;
+  bool _isSharingLocation = false;
+  DateTime? _lastLocationShareTime;
   
+  // Stream subscription for location updates
   StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
@@ -54,7 +58,6 @@ class _MapPageState extends State<MapPage> {
     if (!await _checkLocationPermission()) return;
     
     await _getCurrentLocation();
-    
     _startLocationUpdates();
   }
 
@@ -73,15 +76,17 @@ class _MapPageState extends State<MapPage> {
   void _startLocationUpdates() {
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, 
+      distanceFilter: 10, // Update every 10 meters
     );
     
     _positionStreamSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings
     ).listen((Position position) {
       if (!mounted) return;
+      final newLocation = LatLng(position.latitude, position.longitude);
+      
       setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
+        _currentLocation = newLocation;
         
         if (_shouldFollowUser) {
           _mapController.move(_currentLocation!, _mapController.camera.zoom);
@@ -91,6 +96,16 @@ class _MapPageState extends State<MapPage> {
           _fetchRoute();
         }
       });
+      
+      // Send location update if sharing is active and it's been at least 1 minute since last update
+      if (_isSharingLocation && _selectedContact != null) {
+        final now = DateTime.now();
+        if (_lastLocationShareTime == null || 
+            now.difference(_lastLocationShareTime!) > const Duration(minutes: 1)) {
+          _sendLocationToContact(_selectedContact!, newLocation);
+          _lastLocationShareTime = now;
+        }
+      }
     }, onError: (error) {
       _showErrorMessage("Location stream error: $error");
     });
@@ -104,7 +119,6 @@ class _MapPageState extends State<MapPage> {
     return true;
   }
 
-  // Flag to determine if the map should follow the user's location
   bool _shouldFollowUser = true;
 
   Future<void> _getDestinationLocation(String location) async {
@@ -128,7 +142,7 @@ class _MapPageState extends State<MapPage> {
         if (!mounted) return;
         setState(() {
           _destinationLocation = LatLng(lat, lon);
-          _shouldFollowUser = false; 
+          _shouldFollowUser = false;
         });
         await _fetchRoute();
       } else {
@@ -200,7 +214,7 @@ class _MapPageState extends State<MapPage> {
     if (_currentLocation != null) {
       _mapController.move(_currentLocation!, 15);
       setState(() {
-        _shouldFollowUser = true; 
+        _shouldFollowUser = true;
       });
     } else {
       _showErrorMessage("Unable to get current location");
@@ -225,6 +239,41 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
+  Future<void> _sendLocationToContact(Dcontacts contact, LatLng location) async {
+    final String cleanNumber = contact.number.replaceAll(RegExp(r'\D'), '');
+    final String message = "EMERGENCY! My current location: https://maps.google.com/?q=${location.latitude},${location.longitude}";
+
+    try {
+      if (!await _checkSmsPermission()) {
+        _showErrorMessage("SMS permission denied");
+        return;
+      }
+
+      String? result = await sendSMS(
+        message: message,
+        recipients: [cleanNumber],
+        sendDirect: true,
+      );
+
+      if (result.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location shared successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        await sendSMS(
+          message: message,
+          recipients: [cleanNumber],
+        );
+      }
+    } catch (error) {
+      _showErrorMessage("Failed to send SMS: ${error.toString()}");
+    }
+  }
+
   Future<void> _shareLocationWithContact() async {
     if (_currentLocation == null) {
       _showErrorMessage("Current location not available.");
@@ -241,8 +290,6 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
-    Dcontacts? selectedContact;
-
     await showDialog(
       context: context,
       builder: (context) {
@@ -257,7 +304,9 @@ class _MapPageState extends State<MapPage> {
                         title: Text(contact.name),
                         subtitle: Text(contact.number),
                         onTap: () {
-                          selectedContact = contact;
+                          _selectedContact = contact;
+                          _isSharingLocation = true;
+                          _sendLocationToContact(contact, _currentLocation!);
                           Navigator.pop(context);
                         },
                       ))
@@ -267,44 +316,20 @@ class _MapPageState extends State<MapPage> {
         );
       },
     );
+  }
 
-    if (selectedContact != null) {
-      final String cleanNumber =
-          selectedContact!.number.replaceAll(RegExp(r'\D'), '');
-
-      final String message =
-          "EMERGENCY! My current location: https://maps.google.com/?q=${_currentLocation!.latitude},${_currentLocation!.longitude}";
-
-      try {
-        if (!await _checkSmsPermission()) {
-          _showErrorMessage("SMS permission denied");
-          return;
-        }
-
-        String? result = await sendSMS(
-          message: message,
-          recipients: [cleanNumber],
-          sendDirect: true,
-        );
-
-        if (result.isEmpty) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location shared successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          await sendSMS(
-            message: message,
-            recipients: [cleanNumber],
-          );
-        }
-      } catch (error) {
-        _showErrorMessage("Failed to send SMS: ${error.toString()}");
-      }
-    }
+  void _stopSharingLocation() {
+    setState(() {
+      _isSharingLocation = false;
+      _selectedContact = null;
+      _lastLocationShareTime = null;
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Stopped sharing location updates'),
+      ),
+    );
   }
 
   @override
@@ -421,6 +446,22 @@ class _MapPageState extends State<MapPage> {
                   ),
                 ),
               ),
+            if (_isSharingLocation)
+              Positioned(
+                bottom: 160,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Sharing with ${_selectedContact?.name}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -428,10 +469,12 @@ class _MapPageState extends State<MapPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
-            onPressed: _shareLocationWithContact,
-            label: const Text("Share"),
-            icon: const Icon(Icons.share),
-            backgroundColor: Colors.green,
+            onPressed: _isSharingLocation 
+                ? _stopSharingLocation 
+                : _shareLocationWithContact,
+            label: Text(_isSharingLocation ? "Stop Sharing" : "Share "),
+            icon: Icon(_isSharingLocation ? Icons.stop : Icons.share),
+            backgroundColor: _isSharingLocation ? Colors.red : Colors.green,
           ),
           const SizedBox(height: 10),
           FloatingActionButton(
