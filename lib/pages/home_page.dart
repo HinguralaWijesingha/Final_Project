@@ -102,15 +102,56 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadEmergencyModeStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isEmergencyModeOn = prefs.getBool('emergency_mode') ?? false;
-    });
-    
-    if (_isEmergencyModeOn) {
-      _showEmergencyModeNotification();
-    }
+  final prefs = await SharedPreferences.getInstance();
+  setState(() {
+    _isEmergencyModeOn = prefs.getBool('emergency_mode') ?? false;
+  });
+  
+  // if (_isEmergencyModeOn) {
+  //   _showEmergencyModeNotification();
+  // }
+}
+
+Future<void> _toggleEmergencyMode(bool value) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('emergency_mode', value);
+
+  if (value) {
+    await _storeEmergencyContactsForNative();
   }
+
+  const platform = MethodChannel('safepulse/emergency');
+  try {
+    if (value) {
+      await platform.invokeMethod('startEmergencyService');
+    } else {
+      await platform.invokeMethod('stopEmergencyService');
+    }
+  } catch (e) {
+    debugPrint('Error toggling emergency service: $e');
+  }
+
+  setState(() {
+    _isEmergencyModeOn = value;
+  });
+
+  if (value) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Emergency mode enabled! Use the SOS button to send alerts.",
+            style: TextStyle(fontSize: 14),
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
+  } else {
+    _notificationsPlugin.cancel(0);
+  }
+}
 
 
   Future<void> _showEmergencyModeNotification() async {
@@ -181,7 +222,6 @@ class _HomePageState extends State<HomePage> {
     final contacts = await _db.getContacts();
     final prefs = await SharedPreferences.getInstance();
     
-    // Store in a format that native Android can easily parse
     final contactsJson = jsonEncode(contacts
         .map((c) => {
               'name': c.name,
@@ -195,62 +235,15 @@ class _HomePageState extends State<HomePage> {
     debugPrint('Emergency contacts stored for native access: $contactsJson');
   }
 
-  // Update your existing _loadEmergencyContacts method
   Future<void> _loadEmergencyContacts() async {
     List<Dcontacts> contacts = await _db.getContacts();
     setState(() {
       emergencyContacts = contacts;
     });
-
-    // Store contacts for native access
     await _storeEmergencyContactsForNative();
   }
 
-  // Update your _toggleEmergencyMode method
-  Future<void> _toggleEmergencyMode(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('emergency_mode', value);
-
-    // Ensure contacts are stored before enabling emergency mode
-    if (value) {
-      await _storeEmergencyContactsForNative();
-    }
-
-    const platform = MethodChannel('safepulse/emergency');
-    try {
-      if (value) {
-        await platform.invokeMethod('startEmergencyService');
-      } else {
-        await platform.invokeMethod('stopEmergencyService');
-      }
-    } catch (e) {
-      debugPrint('Error toggling emergency service: $e');
-    }
-
-    setState(() {
-      _isEmergencyModeOn = value;
-    });
-
-    if (value) {
-      _showEmergencyModeNotification();
-      
-      // Show instruction to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Emergency mode enabled! You can now send alerts from lock screen notifications.",
-              style: TextStyle(fontSize: 14),
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
-    } else {
-      _notificationsPlugin.cancel(0);
-    }
-  }
+  
 
 Future<void> _storeEmergencyContacts() async {
   final contacts = await _db.getContacts();
