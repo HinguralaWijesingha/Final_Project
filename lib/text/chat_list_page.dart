@@ -53,7 +53,7 @@ class _ChatListPageState extends State<ChatListPage> {
             children: [
               const SizedBox(height: 10),
               const Text(
-                "Your Chat Contacts",
+                "Chat With Contacts",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
