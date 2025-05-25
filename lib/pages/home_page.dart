@@ -920,7 +920,7 @@ Future<void> _sendRecordingToContacts() async {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            "Emergency Mode:",
+            "Lock Screen Emergency :",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           Switch(
