@@ -61,6 +61,9 @@ class _AddContactPageState extends State<AddContactPage> {
           padding: const EdgeInsets.all(30),
           child: Column(
             children: [
+              const SizedBox(
+                height: 20,
+              ),
               Button(
                   onTap: () async {
                     bool result = await Navigator.push(
