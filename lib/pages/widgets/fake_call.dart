@@ -191,6 +191,7 @@ class _FakeCallPageState extends State<FakeCallPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const CircleAvatar(
+              child: Icon(Icons.person, size: 60, color: Colors.white),
               radius: 60,
             ),
             const SizedBox(height: 20),
