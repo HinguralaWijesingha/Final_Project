@@ -161,7 +161,6 @@ class _ProfilePageState extends State<ProfilePage> {
         },
       ),
     ),
-      //backgroundColor: Colors.white,
       body: StreamBuilder<DocumentSnapshot>(
         stream: usersCollection.doc(currentUser.uid).snapshots(),
         builder: (context, snapshot) {
