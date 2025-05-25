@@ -72,9 +72,7 @@ class LockScreenReceiver : BroadcastReceiver() {
 
             val message = "🚨 EMERGENCY ALERT 🚨\n" +
                     "I need immediate help!\n" +
-                    "This is an automated message from SafePulse app.\n" +
-                    "Sent from lock screen emergency mode."
-
+                    "This is an automated message from SafePulse app.\n"
             sendSmsToContacts(contacts, message)
             
             Log.i(TAG, "Emergency alerts sent to ${contacts.size} contacts")
