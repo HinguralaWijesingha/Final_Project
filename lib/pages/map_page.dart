@@ -338,6 +338,7 @@ class _MapPageState extends State<MapPage> {
       body: SafeArea(
         child: Stack(
           children: [
+            const SizedBox(height: 20),
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : FlutterMap(
