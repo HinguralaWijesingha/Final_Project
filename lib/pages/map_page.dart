@@ -97,7 +97,7 @@ class _MapPageState extends State<MapPage> {
         }
       });
       
-      // Send location update if sharing is active and it's been at least 1 minute since last update
+      // Share location with contact automaic
       if (_isSharingLocation && _selectedContact != null) {
         final now = DateTime.now();
         if (_lastLocationShareTime == null || 
