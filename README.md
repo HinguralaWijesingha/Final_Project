@@ -1,10 +1,12 @@
 # safe_pulse
 
-A new Flutter project.
+Safe Pulse is a mobile application.
 
 ## Getting Started
 
-run "flutter run" in terminal to start app.
+Run "flutter run" in the terminal to start the app.
+
+
 This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:
