@@ -233,6 +233,7 @@ Future<void> _toggleEmergencyMode(bool value) async {
       _cameraController = CameraController(
         backCamera,
         ResolutionPreset.high,
+        enableAudio: true,
       );
       
       await _cameraController!.initialize();
@@ -966,7 +967,7 @@ Future<void> _sendRecordingToContacts() async {
                     ),
                     const SizedBox(height: 8),
                     const LiveHelp(),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     const Text(
                       "Emergency SOS",
                       style: TextStyle(
@@ -1007,9 +1008,18 @@ Future<void> _sendRecordingToContacts() async {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    const Text(
+                      "Emergency Recording",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     if (_cameraController != null && _cameraController!.value.isInitialized)
                       SizedBox(
                         height: 200,
+                        width: double.infinity,
                         child: CameraPreview(_cameraController!),
                       ),
                     if (isRecording) ...[
