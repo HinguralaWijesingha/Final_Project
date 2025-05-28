@@ -4,6 +4,7 @@ A new Flutter project.
 
 ## Getting Started
 
+run "flutter run" in terminal to start app.
 This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:
