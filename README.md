@@ -1,8 +1,12 @@
 # safe_pulse
 
-A new Flutter project.
+Safe Pulse is a mobile application.
 
 ## Getting Started
+
+First unzip and open the folder in the terminal, run "flutter pub get"
+Run "flutter run" in the terminal to start the app.
+
 
 This project is a starting point for a Flutter application.
 
