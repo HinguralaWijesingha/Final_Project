@@ -63,6 +63,7 @@ class LiveHelp extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               //  Police Station , Fire Station
+              SizedBox(width: 30),
               Column(
                 children:  [
                   PoliceStation(onMapFunction: openMap),
@@ -70,7 +71,7 @@ class LiveHelp extends StatelessWidget {
                   FireStations(onMapFunction: openMap),
                 ],
               ),
-              SizedBox(width: 40),
+              SizedBox(width: 60),
               //Hospital, Bus Station
               Column(
                 children: [
